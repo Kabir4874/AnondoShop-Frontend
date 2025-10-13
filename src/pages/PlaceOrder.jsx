@@ -218,7 +218,7 @@ const PlaceOrder = () => {
               ></p>
               <img
                 className="h-5 mx-4"
-                src={assets.sslcommerz_logo}
+                src={assets.ssl_logo}
                 alt="SSLCommerz"
               />
             </div>

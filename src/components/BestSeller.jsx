@@ -1,15 +1,17 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
-import Title from "./Title";
 import ProductItem from "./ProductItem";
+import Title from "./Title";
 
 const BestSeller = () => {
-  const { products } = useContext(ShopContext);
+  const { products = [] } = useContext(ShopContext);
   const [bestSeller, setBestSeller] = useState([]);
 
   useEffect(() => {
-    const bestProduct = products.filter((item) => item.bestseller);
-    setBestSeller(bestProduct.slice(0, 5));
+    const best = (products || [])
+      .filter((item) => item?.bestSeller)
+      .slice(0, 5);
+    setBestSeller(best);
   }, [products]);
 
   return (
@@ -21,14 +23,16 @@ const BestSeller = () => {
           won over shoppers with their quality, style, and value.
         </p>
       </div>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-6">
-        {bestSeller.map((item, index) => (
+        {bestSeller.map((item) => (
           <ProductItem
-            key={index}
+            key={item._id}
             id={item._id}
             image={item.image}
             name={item.name}
             price={item.price}
+            discount={item.discount || 0}
           />
         ))}
       </div>

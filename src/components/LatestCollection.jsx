@@ -4,11 +4,16 @@ import ProductItem from "./ProductItem";
 import Title from "./Title";
 
 const LatestCollection = () => {
-  const { products } = useContext(ShopContext);
+  const { products = [] } = useContext(ShopContext);
   const [latestProducts, setLatestProducts] = useState([]);
 
   useEffect(() => {
-    setLatestProducts(products.slice(0, 10));
+    if (Array.isArray(products) && products.length > 0) {
+      const sorted = [...products].sort(
+        (a, b) => (b.date || 0) - (a.date || 0)
+      );
+      setLatestProducts(sorted.slice(0, 10));
+    }
   }, [products]);
 
   return (
@@ -21,15 +26,16 @@ const LatestCollection = () => {
         </p>
       </div>
 
-      {/* Rendering Product Items */}
+      {/* Product Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-6">
-        {latestProducts.map((item, index) => (
+        {latestProducts.map((item) => (
           <ProductItem
-            key={index}
+            key={item._id}
             id={item._id}
             image={item.image}
             name={item.name}
             price={item.price}
+            discount={item.discount || 0}
           />
         ))}
       </div>
