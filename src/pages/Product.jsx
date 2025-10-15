@@ -160,7 +160,6 @@ const Product = () => {
       <div className="mt-20">
         <div className="flex">
           <b className="px-5 py-3 text-sm border">Description</b>
-          <p className="px-5 py-3 text-sm border">Reviews (122)</p>
         </div>
 
         {/* Long Description (rich HTML) */}

@@ -1,13 +1,17 @@
 import axios from "axios";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
 
+const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
+const BD_POSTAL_REGEX = /^\d{4}$/;
+
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
+
   const {
     navigate,
     backendUrl,
@@ -17,36 +21,85 @@ const PlaceOrder = () => {
     getCartAmount,
     delivery_fee,
     products,
+
+    // From provider (for autofill + sync)
+    address: savedAddress,
+    setAddress: setSavedAddress,
   } = useContext(ShopContext);
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    street: "",
-    city: "",
-    state: "",
-    zipcode: "",
-    country: "",
+  // Local form state (autofill from saved address)
+  const [formAddress, setFormAddress] = useState({
+    recipientName: "",
     phone: "",
+    addressLine1: "",
+    district: "",
+    postalCode: "",
   });
 
-  const onChangeHandler = (e) => {
+  // Autofill whenever savedAddress changes (e.g., user saved in Profile)
+  useEffect(() => {
+    if (savedAddress) {
+      setFormAddress((prev) => ({
+        recipientName: savedAddress.recipientName || "",
+        phone: savedAddress.phone || "",
+        addressLine1: savedAddress.addressLine1 || "",
+        district: savedAddress.district || "",
+        postalCode: savedAddress.postalCode || "",
+      }));
+    }
+  }, [savedAddress]);
+
+  const onChangeAddress = (e) => {
     const { name, value } = e.target;
-    setFormData((d) => ({ ...d, [name]: value }));
+    setFormAddress((d) => ({ ...d, [name]: value }));
+  };
+
+  const headers = useMemo(() => ({ token }), [token]);
+
+  const isAddressEmpty = (addr) =>
+    !addr?.recipientName &&
+    !addr?.phone &&
+    !addr?.addressLine1 &&
+    !addr?.district &&
+    !addr?.postalCode;
+
+  const hasAddressChanged = (a, b) =>
+    (a?.recipientName || "") !== (b?.recipientName || "") ||
+    (a?.phone || "") !== (b?.phone || "") ||
+    (a?.addressLine1 || "") !== (b?.addressLine1 || "") ||
+    (a?.district || "") !== (b?.district || "") ||
+    (a?.postalCode || "") !== (b?.postalCode || "");
+
+  const validateAddress = (addr) => {
+    const { recipientName, phone, addressLine1, district, postalCode } =
+      addr || {};
+    if (!recipientName || !phone || !addressLine1 || !district || !postalCode) {
+      toast.error("All address fields are required.");
+      return false;
+    }
+    if (!BD_PHONE_REGEX.test(phone)) {
+      toast.error("Invalid Bangladesh phone number.");
+      return false;
+    }
+    if (!BD_POSTAL_REGEX.test(postalCode)) {
+      toast.error("Postal code must be a 4-digit Bangladesh postcode.");
+      return false;
+    }
+    return true;
   };
 
   const buildOrderItems = () => {
     const orderItems = [];
     for (const productId in cartItems) {
       for (const size in cartItems[productId]) {
-        if (cartItems[productId][size] > 0) {
+        const qty = cartItems[productId][size];
+        if (qty > 0) {
           const itemInfo = structuredClone(
             products.find((p) => p._id === productId)
           );
           if (itemInfo) {
             itemInfo.size = size;
-            itemInfo.quantity = cartItems[productId][size];
+            itemInfo.quantity = qty;
             orderItems.push(itemInfo);
           }
         }
@@ -55,14 +108,60 @@ const PlaceOrder = () => {
     return orderItems;
   };
 
+  // Save address (if needed) then place order
   const onSubmitHandler = async (e) => {
     e.preventDefault();
+    if (!token) {
+      toast.error("You must be logged in.");
+      return;
+    }
 
+    const items = buildOrderItems();
+    if (items.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
+
+    const amount = getCartAmount() + delivery_fee;
+    const addressToUse = { ...formAddress };
+
+    // 1) Validate address
+    if (!validateAddress(addressToUse)) return;
+
+    // 2) Save/update address if none exists or changed
+    const mustSave =
+      isAddressEmpty(savedAddress) ||
+      hasAddressChanged(addressToUse, savedAddress);
+
+    if (mustSave) {
+      try {
+        const res = await axios.post(
+          `${backendUrl}/api/user/address`,
+          addressToUse,
+          { headers }
+        );
+        if (!res?.data?.success) {
+          toast.error(res?.data?.message || "Failed to save address");
+          return;
+        }
+        // Sync provider address so it's up-to-date across the app
+        setSavedAddress(addressToUse);
+        toast.success("Address saved");
+      } catch (error) {
+        console.error(error);
+        toast.error(
+          error?.response?.data?.message ||
+            error.message ||
+            "Failed to save address"
+        );
+        return;
+      }
+    }
+
+    // 3) Place order
     try {
-      const items = buildOrderItems();
-      const amount = getCartAmount() + delivery_fee;
       const orderData = {
-        address: formData,
+        address: addressToUse, // matches your minimal BD schema on the backend
         items,
         amount,
       };
@@ -71,21 +170,20 @@ const PlaceOrder = () => {
         const { data } = await axios.post(
           `${backendUrl}/api/order/place`,
           orderData,
-          { headers: { token } }
+          { headers }
         );
         if (data.success) {
           setCartItems({});
+          toast.success("Order placed successfully");
           navigate("/orders");
         } else {
           toast.error(data.message || "Failed to place order");
         }
-      }
-
-      if (method === "sslcommerz") {
+      } else if (method === "sslcommerz") {
         const { data } = await axios.post(
           `${backendUrl}/api/order/ssl/initiate`,
           orderData,
-          { headers: { token } }
+          { headers }
         );
         if (data.success && data.url) {
           window.location.replace(data.url);
@@ -104,101 +202,67 @@ const PlaceOrder = () => {
       onSubmit={onSubmitHandler}
       className="flex flex-col justify-between gap-4 pt-5 sm:flex-row sm:pt-14 min-h-[80vh] border-t"
     >
-      {/* Left Side */}
+      {/* Left Side — Delivery Info (BD minimal) */}
       <div className="flex flex-col w-full gap-4 sm:max-w-[480px]">
         <div className="my-3 text-xl sm:text-2xl">
           <Title text1={"DELIVERY"} text2={"INFORMATION"} />
         </div>
-        <div className="flex gap-3">
-          <input
-            required
-            name="firstName"
-            value={formData.firstName}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="First Name"
-          />
-          <input
-            required
-            name="lastName"
-            value={formData.lastName}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="Last Name"
-          />
-        </div>
+
         <input
           required
-          name="email"
-          value={formData.email}
-          onChange={onChangeHandler}
-          className="w-full px-4 py-2 border border-gray-300 rounded"
-          type="email"
-          placeholder="Email Address"
-        />
-        <input
-          required
-          name="street"
-          value={formData.street}
-          onChange={onChangeHandler}
+          name="recipientName"
+          value={formAddress.recipientName}
+          onChange={onChangeAddress}
           className="w-full px-4 py-2 border border-gray-300 rounded"
           type="text"
-          placeholder="Street"
+          placeholder="Recipient Name"
         />
-        <div className="flex gap-3">
-          <input
-            required
-            name="city"
-            value={formData.city}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="City"
-          />
-          <input
-            required
-            name="state"
-            value={formData.state}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="State"
-          />
-        </div>
-        <div className="flex gap-3">
-          <input
-            required
-            name="zipcode"
-            value={formData.zipcode}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="Zip Code"
-          />
-          <input
-            required
-            name="country"
-            value={formData.country}
-            onChange={onChangeHandler}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            placeholder="Country"
-          />
-        </div>
+
         <input
           required
           name="phone"
-          value={formData.phone}
-          onChange={onChangeHandler}
+          value={formAddress.phone}
+          onChange={onChangeAddress}
+          className="w-full px-4 py-2 border border-gray-300 rounded"
+          type="tel"
+          inputMode="tel"
+          placeholder="01XXXXXXXXX or +8801XXXXXXXXX"
+        />
+
+        <input
+          required
+          name="addressLine1"
+          value={formAddress.addressLine1}
+          onChange={onChangeAddress}
           className="w-full px-4 py-2 border border-gray-300 rounded"
           type="text"
-          placeholder="Mobile"
+          placeholder="House/Road/Village"
         />
+
+        <div className="flex gap-3">
+          <input
+            required
+            name="district"
+            value={formAddress.district}
+            onChange={onChangeAddress}
+            className="w-full px-4 py-2 border border-gray-300 rounded"
+            type="text"
+            placeholder="District (e.g., Dhaka)"
+          />
+          <input
+            required
+            name="postalCode"
+            value={formAddress.postalCode}
+            onChange={onChangeAddress}
+            className="w-full px-4 py-2 border border-gray-300 rounded"
+            type="text"
+            inputMode="numeric"
+            placeholder="Postal Code (4 digits)"
+          />
+        </div>
       </div>
 
-      {/* Right Side */}
+      {/* Right Side — Summary + Payment */}
       <div className="mt-8">
         <div className="mt-8 min-w-80">
           <CartTotal />

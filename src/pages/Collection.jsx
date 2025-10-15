@@ -1,92 +1,152 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { assets } from "../assets/assets";
 import ProductItem from "../components/ProductItem";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
 
+const CATEGORY_OPTIONS = ["Men", "Women", "Kids"];
+
+const SUBCATEGORY_OPTIONS = [
+  "Belt Combo",
+  "Love Box combo",
+  "Full combo",
+  "প্রিন্ট শার্ট কম্বো",
+  "ছোট কম্বো",
+  "শাড়ি",
+];
+
+const SIZE_OPTIONS = ["S-38", "M-40", "L-42", "XL-44", "XXL-46"];
+
 const Collection = () => {
   const { products = [], search, showSearch } = useContext(ShopContext);
 
   const [showFilter, setShowFilter] = useState(false);
-  const [filterProducts, setFilterProducts] = useState([]);
+
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
+  const [sizes, setSizes] = useState([]);
+  const [bestSellerOnly, setBestSellerOnly] = useState(false);
+  const [discountOnly, setDiscountOnly] = useState(false);
   const [sortType, setSortType] = useState("relevant");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
 
-  const toggleCategory = (e) => {
-    const val = e.target.value;
-    setCategory((prev) =>
-      prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val]
+  const { globalMinPrice, globalMaxPrice } = useMemo(() => {
+    if (!products || products.length === 0)
+      return { globalMinPrice: 0, globalMaxPrice: 0 };
+    let min = Infinity;
+    let max = -Infinity;
+    for (const p of products) {
+      const price = Number(p?.price) || 0;
+      if (price < min) min = price;
+      if (price > max) max = price;
+    }
+    return {
+      globalMinPrice: min === Infinity ? 0 : min,
+      globalMaxPrice: max === -Infinity ? 0 : max,
+    };
+  }, [products]);
+
+  const toggleValue = (val, setter) =>
+    setter((prev) =>
+      prev.includes(val) ? prev.filter((i) => i !== val) : [...prev, val]
     );
-  };
 
-  const toggleSubCategory = (e) => {
-    const val = e.target.value;
-    setSubCategory((prev) =>
-      prev.includes(val) ? prev.filter((item) => item !== val) : [...prev, val]
-    );
-  };
-
-  const applyFilter = () => {
-    let productsCopy = products.slice();
-
-    if (showSearch && search) {
-      const q = search.toLowerCase();
-      productsCopy = productsCopy.filter((item) =>
-        item.name.toLowerCase().includes(q)
-      );
-    }
-
-    if (category.length > 0) {
-      productsCopy = productsCopy.filter((item) =>
-        category.includes(item.category)
-      );
-    }
-
-    if (subCategory.length > 0) {
-      productsCopy = productsCopy.filter((item) =>
-        subCategory.includes(item.subCategory)
-      );
-    }
-
-    setFilterProducts(productsCopy);
-  };
-
-  const sortProduct = () => {
-    const fpCopy = filterProducts.slice();
-    switch (sortType) {
-      case "low-high":
-        setFilterProducts(fpCopy.sort((a, b) => a.price - b.price));
-        break;
-      case "high-low":
-        setFilterProducts(fpCopy.sort((a, b) => b.price - a.price));
-        break;
-      default:
-        applyFilter();
-        break;
-    }
-  };
+  const toggleCategory = (e) => toggleValue(e.target.value, setCategory);
+  const toggleSubCategory = (e) => toggleValue(e.target.value, setSubCategory);
+  const toggleSize = (e) => toggleValue(e.target.value, setSizes);
 
   const clearFilters = () => {
     setCategory([]);
     setSubCategory([]);
+    setSizes([]);
+    setBestSellerOnly(false);
+    setDiscountOnly(false);
+    setPriceMin("");
+    setPriceMax("");
+    setSortType("relevant");
   };
 
-  const totalResults = useMemo(() => filterProducts.length, [filterProducts]);
+  const filteredProducts = useMemo(() => {
+    let list = Array.isArray(products) ? products.slice() : [];
 
-  useEffect(() => {
-    applyFilter();
-  }, [category, subCategory, search, showSearch, products]);
+    // Search
+    if (showSearch && search) {
+      const q = String(search).toLowerCase().trim();
+      if (q) {
+        list = list.filter((item) => {
+          const name = String(item?.name || "").toLowerCase();
+          const desc = String(item?.description || "").toLowerCase();
+          const sub = String(item?.subCategory || "").toLowerCase();
+          return name.includes(q) || desc.includes(q) || sub.includes(q);
+        });
+      }
+    }
 
-  useEffect(() => {
-    sortProduct();
-  }, [sortType]);
+    // Category
+    if (category.length > 0) {
+      list = list.filter((item) => category.includes(item?.category));
+    }
+
+    // Sub-category
+    if (subCategory.length > 0) {
+      list = list.filter((item) => subCategory.includes(item?.subCategory));
+    }
+
+    // Sizes
+    if (sizes.length > 0) {
+      list = list.filter((item) => {
+        const itemSizes = Array.isArray(item?.sizes) ? item.sizes : [];
+        return itemSizes.some((s) => sizes.includes(s));
+      });
+    }
+
+    // Flags
+    if (bestSellerOnly) {
+      list = list.filter((item) => !!item?.bestSeller);
+    }
+    if (discountOnly) {
+      list = list.filter((item) => Number(item?.discount) > 0);
+    }
+
+    // Price range
+    const min = priceMin === "" ? -Infinity : Number(priceMin);
+    const max = priceMax === "" ? Infinity : Number(priceMax);
+    if (min !== -Infinity || max !== Infinity) {
+      list = list.filter((item) => {
+        const p = Number(item?.price) || 0;
+        return p >= min && p <= max;
+      });
+    }
+
+    if (sortType === "low-high") {
+      list.sort((a, b) => (Number(a?.price) || 0) - (Number(b?.price) || 0));
+    } else if (sortType === "high-low") {
+      list.sort((a, b) => (Number(b?.price) || 0) - (Number(a?.price) || 0));
+    }
+
+    return list;
+  }, [
+    products,
+    showSearch,
+    search,
+    category,
+    subCategory,
+    sizes,
+    bestSellerOnly,
+    discountOnly,
+    priceMin,
+    priceMax,
+    sortType,
+  ]);
+
+  const totalResults = filteredProducts.length;
 
   return (
     <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 border-t">
       <div className="flex flex-col sm:flex-row sm:gap-10 gap-4">
         {/* Filter Column */}
-        <aside className="w-full sm:min-w-60 sm:w-60">
+        <aside className="w-full sm:min-w-64 sm:w-64">
           <button
             type="button"
             onClick={() => setShowFilter((s) => !s)}
@@ -111,7 +171,7 @@ const Collection = () => {
             />
           </button>
 
-          {/* Category Filters */}
+          {/* Categories */}
           <div
             id="mobile-filters"
             className={`${
@@ -120,76 +180,136 @@ const Collection = () => {
           >
             <p className="mb-3 text-sm font-medium">CATEGORIES</p>
             <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  value="Men"
-                  onChange={toggleCategory}
-                  checked={category.includes("Men")}
-                />
-                Men
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  value="Women"
-                  onChange={toggleCategory}
-                  checked={category.includes("Women")}
-                />
-                Women
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  value="Kids"
-                  onChange={toggleCategory}
-                  checked={category.includes("Kids")}
-                />
-                Kids
-              </label>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <label
+                  key={opt}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    className="w-3 h-3"
+                    type="checkbox"
+                    value={opt}
+                    onChange={toggleCategory}
+                    checked={category.includes(opt)}
+                  />
+                  {opt}
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Sub Category Filters */}
+          {/* Sub-categories */}
           <div
             className={`${
               showFilter ? "block" : "hidden"
             } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
           >
-            <p className="mb-3 text-sm font-medium">TYPES</p>
+            <p className="mb-3 text-sm font-medium">SUB-CATEGORIES</p>
+            <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
+              {SUBCATEGORY_OPTIONS.map((opt) => (
+                <label
+                  key={opt}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    className="w-3 h-3"
+                    type="checkbox"
+                    value={opt}
+                    onChange={toggleSubCategory}
+                    checked={subCategory.includes(opt)}
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Sizes */}
+          <div
+            className={`${
+              showFilter ? "block" : "hidden"
+            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
+          >
+            <p className="mb-3 text-sm font-medium">SIZES</p>
+            <div className="flex flex-wrap gap-2 text-sm font-light text-gray-700 pr-3">
+              {SIZE_OPTIONS.map((opt) => (
+                <label
+                  key={opt}
+                  className="inline-flex items-center gap-2 cursor-pointer border rounded px-2 py-1"
+                >
+                  <input
+                    className="w-3 h-3"
+                    type="checkbox"
+                    value={opt}
+                    onChange={toggleSize}
+                    checked={sizes.includes(opt)}
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Price range */}
+          <div
+            className={`${
+              showFilter ? "block" : "hidden"
+            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5 pr-5`}
+          >
+            <p className="mb-3 text-sm font-medium">PRICE RANGE (৳)</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder={String(globalMinPrice || 0)}
+                value={priceMin}
+                onChange={(e) => setPriceMin(e.target.value)}
+                className="w-full max-w-24 px-2 py-1 border rounded"
+                aria-label="Minimum price"
+              />
+              <span className="text-gray-500">—</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder={String(globalMaxPrice || 0)}
+                value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value)}
+                className="w-full max-w-24 px-2 py-1 border rounded"
+                aria-label="Maximum price"
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Data range: ৳{globalMinPrice} – ৳{globalMaxPrice}
+            </p>
+          </div>
+
+          {/* Flags */}
+          <div
+            className={`${
+              showFilter ? "block" : "hidden"
+            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
+          >
+            <p className="mb-3 text-sm font-medium">FILTER BY</p>
             <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   className="w-3 h-3"
                   type="checkbox"
-                  value="Topwear"
-                  onChange={toggleSubCategory}
-                  checked={subCategory.includes("Topwear")}
+                  checked={bestSellerOnly}
+                  onChange={(e) => setBestSellerOnly(e.target.checked)}
                 />
-                Topwear
+                Best Sellers only
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   className="w-3 h-3"
                   type="checkbox"
-                  value="Bottomwear"
-                  onChange={toggleSubCategory}
-                  checked={subCategory.includes("Bottomwear")}
+                  checked={discountOnly}
+                  onChange={(e) => setDiscountOnly(e.target.checked)}
                 />
-                Bottomwear
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  value="Winterwear"
-                  onChange={toggleSubCategory}
-                  checked={subCategory.includes("Winterwear")}
-                />
-                Winterwear
+                On discount
               </label>
             </div>
           </div>
@@ -234,7 +354,7 @@ const Collection = () => {
           </div>
 
           {/* Product Grid */}
-          {filterProducts.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div className="py-12 text-center text-gray-500">
               <img
                 src={assets.search_icon}
@@ -252,13 +372,14 @@ const Collection = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-4">
-              {filterProducts.map((item, index) => (
+              {filteredProducts.map((item) => (
                 <ProductItem
-                  key={index}
+                  key={item._id ?? `${item.name}-${item.price}`}
                   id={item._id}
                   name={item.name}
                   image={item.image}
                   price={item.price}
+                  discount={item.discount || 0}
                 />
               ))}
             </div>

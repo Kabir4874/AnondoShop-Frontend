@@ -14,6 +14,7 @@ import Orders from "./pages/Orders";
 import PaymentResult from "./pages/PaymentResult";
 import PlaceOrder from "./pages/PlaceOrder";
 import Product from "./pages/Product";
+import Profile from "./pages/Profile";
 import Verify from "./pages/Verify";
 
 const App = () => {
@@ -28,6 +29,7 @@ const App = () => {
         <Route path="/collection" element={<Collection />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/product/:productId" element={<Product />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
