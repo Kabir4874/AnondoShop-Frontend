@@ -178,6 +178,26 @@ const ShopContextProvider = (props) => {
     }
   };
 
+  // Helper: fully clear local cart + try to sync with server
+  const clearCart = async () => {
+    try {
+      setCartItems({});
+      localStorage.removeItem("cartItems");
+      if (token) {
+        // Server should already clear cart after successful payment (sslSuccess),
+        // but we fetch to ensure client stays in sync.
+        await getUserCart(token);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Optional public method to re-fetch cart
+  const refreshUserCart = async () => {
+    if (token) await getUserCart(token);
+  };
+
   // ----- Token bootstrap (load from localStorage and fetch cart/profile) -----
   useEffect(() => {
     const stored = localStorage.getItem("token");
@@ -205,6 +225,7 @@ const ShopContextProvider = (props) => {
         postalCode: "",
       });
       setCartItems({});
+      localStorage.removeItem("cartItems");
     }
   };
 
@@ -360,6 +381,10 @@ const ShopContextProvider = (props) => {
     updateQuantity,
     getCartCount,
     getCartAmount,
+
+    // CART helpers
+    clearCart,
+    refreshUserCart,
 
     // profile / address
     user,

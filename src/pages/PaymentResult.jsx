@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
 
 const PaymentResult = () => {
-  const { setCartItems, navigate } = useContext(ShopContext);
+  const { clearCart, refreshUserCart, navigate } = useContext(ShopContext);
   const { search } = useLocation();
 
   const params = useMemo(() => new URLSearchParams(search), [search]);
@@ -12,10 +12,12 @@ const PaymentResult = () => {
 
   useEffect(() => {
     if (status === "success") {
-      // Cart already cleared server-side; also clear local cart state
-      setCartItems({});
+      (async () => {
+        await clearCart();
+        await refreshUserCart();
+      })();
     }
-  }, [status, setCartItems]);
+  }, [status, clearCart, refreshUserCart]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">

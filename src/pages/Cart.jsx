@@ -4,6 +4,12 @@ import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
 
+const isXXL = (size) => {
+  if (!size) return false;
+  const s = String(size).toUpperCase();
+  return s.startsWith("XXL");
+};
+
 const Cart = () => {
   const {
     products = [],
@@ -133,6 +139,11 @@ const Cart = () => {
             const discount = Number(productData.discount) || 0;
             const finalPrice = getFinalPrice(price, discount);
 
+            const showXXLNote = isXXL(item.size);
+            const xxlLineTotal = showXXLNote
+              ? 50 * Number(item.quantity || 0)
+              : 0;
+
             return (
               <div
                 key={index}
@@ -177,6 +188,14 @@ const Cart = () => {
                         {item.size}
                       </p>
                     </div>
+
+                    {/* XXL surcharge note (informational) */}
+                    {showXXLNote && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        XXL surcharge: &#2547; 50 × {item.quantity} = &#2547;{" "}
+                        {formatBDT(xxlLineTotal)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -212,6 +231,7 @@ const Cart = () => {
       {/* Totals + Checkout */}
       <div className="flex justify-end my-20">
         <div className="w-full sm:w-[450px]">
+          {/* On /cart, CartTotal will hide shipping fee automatically */}
           <CartTotal />
           <div className="w-full text-end">
             <button

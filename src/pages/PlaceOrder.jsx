@@ -9,6 +9,62 @@ import { ShopContext } from "../context/ShopContext";
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
 const BD_POSTAL_REGEX = /^\d{4}$/;
 
+function computeDeliveryFee(address) {
+  if (!address) return { fee: 150, label: "Other" };
+  const d = String(address.district || "")
+    .toLowerCase()
+    .trim();
+  const line = String(address.addressLine1 || "").toLowerCase();
+
+  // Priority: Dhaka
+  if (d === "dhaka") {
+    return { fee: 80, label: "Dhaka" };
+  }
+
+  // Gazipur (district)
+  if (d === "gazipur") {
+    return { fee: 120, label: "Gazipur" };
+  }
+
+  // Savar / Ashulia (often part of Dhaka district but requested to be special-cased)
+  // typo-safe: asulia / ashulia
+  const savarHit = d.includes("savar") || line.includes("savar");
+  const ashuliaHit =
+    d.includes("ashulia") ||
+    d.includes("asulia") ||
+    line.includes("ashulia") ||
+    line.includes("asulia");
+
+  if (savarHit || ashuliaHit) {
+    return { fee: 120, label: "Savar/Ashulia" };
+  }
+
+  // Default others
+  return { fee: 150, label: "Other" };
+}
+
+// Keep subtotal logic consistent with CartTotal (includes discount)
+function calcCartSubtotal(products = [], cartItems = {}) {
+  const map = new Map(products.map((p) => [p._id, p]));
+  let sub = 0;
+  for (const productId in cartItems) {
+    const product = map.get(productId);
+    if (!product) continue;
+    const base = Number(product.price) || 0;
+    const discount = Number(product.discount) || 0;
+    const final =
+      discount > 0 ? Math.max(0, base - (base * discount) / 100) : base;
+
+    const sizes = cartItems[productId] || {};
+    for (const sizeKey in sizes) {
+      const qty = Number(sizes[sizeKey]) || 0;
+      if (qty <= 0) continue;
+      sub += final * qty;
+    }
+  }
+  return sub;
+}
+
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
 
@@ -18,11 +74,9 @@ const PlaceOrder = () => {
     token,
     cartItems,
     setCartItems,
-    getCartAmount,
-    delivery_fee,
     products,
 
-    // From provider (for autofill + sync)
+    // For autofill + sync with profile
     address: savedAddress,
     setAddress: setSavedAddress,
   } = useContext(ShopContext);
@@ -39,13 +93,13 @@ const PlaceOrder = () => {
   // Autofill whenever savedAddress changes (e.g., user saved in Profile)
   useEffect(() => {
     if (savedAddress) {
-      setFormAddress((prev) => ({
+      setFormAddress({
         recipientName: savedAddress.recipientName || "",
         phone: savedAddress.phone || "",
         addressLine1: savedAddress.addressLine1 || "",
         district: savedAddress.district || "",
         postalCode: savedAddress.postalCode || "",
-      }));
+      });
     }
   }, [savedAddress]);
 
@@ -63,12 +117,12 @@ const PlaceOrder = () => {
     !addr?.district &&
     !addr?.postalCode;
 
-  const hasAddressChanged = (a, b) =>
-    (a?.recipientName || "") !== (b?.recipientName || "") ||
-    (a?.phone || "") !== (b?.phone || "") ||
-    (a?.addressLine1 || "") !== (b?.addressLine1 || "") ||
-    (a?.district || "") !== (b?.district || "") ||
-    (a?.postalCode || "") !== (b?.postalCode || "");
+  const hasAddressChanged = (a = {}, b = {}) =>
+    (a.recipientName || "") !== (b.recipientName || "") ||
+    (a.phone || "") !== (b.phone || "") ||
+    (a.addressLine1 || "") !== (b.addressLine1 || "") ||
+    (a.district || "") !== (b.district || "") ||
+    (a.postalCode || "") !== (b.postalCode || "");
 
   const validateAddress = (addr) => {
     const { recipientName, phone, addressLine1, district, postalCode } =
@@ -108,6 +162,18 @@ const PlaceOrder = () => {
     return orderItems;
   };
 
+  // Dynamic delivery fee from the current address
+  const { fee: deliveryFee, label: deliveryLabel } = useMemo(
+    () => computeDeliveryFee(formAddress),
+    [formAddress]
+  );
+
+  // Subtotal computed with discounts (matches CartTotal)
+  const subtotal = useMemo(
+    () => calcCartSubtotal(products, cartItems),
+    [products, cartItems]
+  );
+
   // Save address (if needed) then place order
   const onSubmitHandler = async (e) => {
     e.preventDefault();
@@ -122,7 +188,6 @@ const PlaceOrder = () => {
       return;
     }
 
-    const amount = getCartAmount() + delivery_fee;
     const addressToUse = { ...formAddress };
 
     // 1) Validate address
@@ -144,8 +209,7 @@ const PlaceOrder = () => {
           toast.error(res?.data?.message || "Failed to save address");
           return;
         }
-        // Sync provider address so it's up-to-date across the app
-        setSavedAddress(addressToUse);
+        setSavedAddress(addressToUse); // keep context in sync
         toast.success("Address saved");
       } catch (error) {
         console.error(error);
@@ -158,10 +222,12 @@ const PlaceOrder = () => {
       }
     }
 
-    // 3) Place order
+    // 3) Place order — amount = subtotal + dynamic delivery fee
     try {
+      const amount = subtotal + deliveryFee;
+
       const orderData = {
-        address: addressToUse, // matches your minimal BD schema on the backend
+        address: addressToUse, // minimal BD schema
         items,
         amount,
       };
@@ -236,7 +302,7 @@ const PlaceOrder = () => {
           onChange={onChangeAddress}
           className="w-full px-4 py-2 border border-gray-300 rounded"
           type="text"
-          placeholder="House/Road/Village"
+          placeholder="House/Road/Village (e.g., Savar, Ashulia, etc.)"
         />
 
         <div className="flex gap-3">
@@ -247,7 +313,7 @@ const PlaceOrder = () => {
             onChange={onChangeAddress}
             className="w-full px-4 py-2 border border-gray-300 rounded"
             type="text"
-            placeholder="District (e.g., Dhaka)"
+            placeholder="District (e.g., Dhaka / Gazipur)"
           />
           <input
             required
@@ -265,7 +331,11 @@ const PlaceOrder = () => {
       {/* Right Side — Summary + Payment */}
       <div className="mt-8">
         <div className="mt-8 min-w-80">
-          <CartTotal />
+          {/* Pass dynamic delivery fee + label so summary matches the amount sent to backend */}
+          <CartTotal
+            deliveryFee={deliveryFee}
+            destinationLabel={deliveryLabel}
+          />
         </div>
 
         <div className="mt-12">

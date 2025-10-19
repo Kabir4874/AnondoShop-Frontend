@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import FloatingWhatsAppButton from "./components/FloatingWhatsAppButton";
 import Footer from "./components/Footer";
 import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
@@ -39,6 +40,7 @@ const App = () => {
         <Route path="/verify" element={<Verify />} />
       </Routes>
       <Footer />
+      <FloatingWhatsAppButton />
     </div>
   );
 };
