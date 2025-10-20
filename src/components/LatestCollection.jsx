@@ -36,6 +36,7 @@ const LatestCollection = () => {
             name={item.name}
             price={item.price}
             discount={item.discount || 0}
+            sizes={item.sizes}
           />
         ))}
       </div>

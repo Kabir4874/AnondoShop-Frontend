@@ -122,7 +122,11 @@ const Footer = () => {
         <hr />
         <p className="py-5 text-sm text-center">
           Copyright 2025 AnondoShop. All rights reserved. Developed By{" "}
-          <a href="#" className="text-blue-500 underline hover:text-blue-600">
+          <a
+            href="https://kabir-ahmed.netlify.app"
+            target="_blank"
+            className="text-blue-500 underline hover:text-blue-600"
+          >
             Kabir Ahmed Ridoy
           </a>
         </p>

@@ -15,6 +15,7 @@ const Cart = () => {
     products = [],
     cartItems,
     updateQuantity,
+    moveCartItemSize, // <— use the atomic mover from context
     navigate,
   } = useContext(ShopContext);
 
@@ -70,6 +71,12 @@ const Cart = () => {
     return map;
   }, [products]);
 
+  // size change handler — purely delegates to context
+  const handleSizeChange = (productId, oldSize, newSize) => {
+    if (!newSize || newSize === oldSize) return;
+    moveCartItemSize(productId, oldSize, newSize);
+  };
+
   return (
     <div className="border-t pt-14">
       <div className="mb-3 text-2xl">
@@ -98,25 +105,25 @@ const Cart = () => {
               // If product not found (deleted/unavailable), show a removable row
               return (
                 <div
-                  key={index}
-                  className="grid py-4 text-gray-700 border-t border-b grid-cols-[4fr_0.5fr_0.5fr] sm:grid-cols-[4fr_2fr_0.5fr] items-center gap-4 opacity-70"
+                  key={`${index}-missing`}
+                  className="grid grid-cols-[4fr_0.5fr_0.5fr] items-center gap-4 border-t border-b py-4 text-gray-700 sm:grid-cols-[4fr_2fr_0.5fr] opacity-70"
                 >
                   <div className="flex items-start gap-6">
-                    <div className="w-16 sm:w-20 bg-gray-100" />
+                    <div className="w-16 bg-gray-100 sm:w-20" />
                     <div>
                       <p className="text-sm font-medium sm:text-lg">
                         Product unavailable
                       </p>
-                      <div className="flex items-center gap-5 mt-2">
+                      <div className="mt-2 flex items-center gap-5">
                         <p className="text-gray-500">—</p>
-                        <p className="px-2 border sm:px-3 sm:py-1 bg-slate-50">
+                        <p className="px-2 border bg-slate-50 sm:px-3 sm:py-1">
                           {item.size}
                         </p>
                       </div>
                     </div>
                   </div>
                   <input
-                    className="px-1 py-1 border max-w-10 sm:max-w-20 sm:px-2 bg-gray-100"
+                    className="max-w-10 px-1 py-1 border bg-gray-100 sm:max-w-20 sm:px-2"
                     type="number"
                     min={1}
                     value={item.quantity}
@@ -125,7 +132,7 @@ const Cart = () => {
                   />
                   <img
                     onClick={() => updateQuantity(item._id, item.size, 0)}
-                    className="w-4 mr-4 cursor-pointer sm:w-5"
+                    className="w-4 cursor-pointer sm:w-5"
                     src={assets.bin_icon}
                     alt="Remove"
                     title="Remove from cart"
@@ -139,6 +146,14 @@ const Cart = () => {
             const discount = Number(productData.discount) || 0;
             const finalPrice = getFinalPrice(price, discount);
 
+            // Build size options = union of product sizes + current size
+            const productSizes = Array.isArray(productData.sizes)
+              ? productData.sizes
+              : [];
+            const uniqueSizes = Array.from(
+              new Set([...(productSizes || []), item.size].filter(Boolean))
+            );
+
             const showXXLNote = isXXL(item.size);
             const xxlLineTotal = showXXLNote
               ? 50 * Number(item.quantity || 0)
@@ -146,18 +161,18 @@ const Cart = () => {
 
             return (
               <div
-                key={index}
-                className="grid py-4 text-gray-700 border-t border-b grid-cols-[4fr_0.5fr_0.5fr] sm:grid-cols-[4fr_2fr_0.5fr] items-center gap-4"
+                key={`${item._id}-${item.size}-${index}`}
+                className="grid grid-cols-[4fr_0.5fr_0.5fr] items-center gap-4 border-t border-b py-4 text-gray-700 sm:grid-cols-[4fr_2fr_0.5fr]"
               >
                 <div className="flex items-start gap-6">
                   {imgUrl ? (
                     <img
-                      className="w-16 sm:w-20 object-cover"
+                      className="w-16 object-cover sm:w-20"
                       src={imgUrl}
                       alt={productData.name}
                     />
                   ) : (
-                    <div className="w-16 sm:w-20 bg-gray-100" />
+                    <div className="w-16 bg-gray-100 sm:w-20" />
                   )}
 
                   <div>
@@ -165,17 +180,18 @@ const Cart = () => {
                       {productData.name}
                     </p>
 
-                    <div className="flex items-center gap-5 mt-2">
+                    {/* Price + Size */}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 sm:gap-5">
                       {/* Price (with discount handling) */}
                       {discount > 0 ? (
                         <div className="flex items-baseline gap-2">
-                          <span className="line-through text-gray-400">
+                          <span className="text-gray-400 line-through">
                             &#2547; {formatBDT(price)}
                           </span>
                           <span className="font-semibold">
                             &#2547; {formatBDT(finalPrice)}
                           </span>
-                          <span className="text-xs text-green-700 font-semibold">
+                          <span className="text-xs font-semibold text-green-700">
                             -{discount}%
                           </span>
                         </div>
@@ -183,10 +199,28 @@ const Cart = () => {
                         <p>&#2547; {formatBDT(price)}</p>
                       )}
 
-                      {/* Size pill */}
-                      <p className="px-2 border sm:px-3 sm:py-1 bg-slate-50">
-                        {item.size}
-                      </p>
+                      {/* Size selector */}
+                      <label className="inline-flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Size</span>
+                        <select
+                          value={item.size}
+                          onChange={(e) =>
+                            handleSizeChange(
+                              item._id,
+                              item.size,
+                              e.target.value
+                            )
+                          }
+                          className="rounded border px-2 py-1 text-sm"
+                          title="Change size"
+                        >
+                          {uniqueSizes.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
 
                     {/* XXL surcharge note (informational) */}
@@ -208,7 +242,7 @@ const Cart = () => {
                       updateQuantity(item._id, item.size, n);
                     }
                   }}
-                  className="px-1 py-1 border max-w-10 sm:max-w-20 sm:px-2"
+                  className="max-w-10 px-1 py-1 border sm:max-w-20 sm:px-2"
                   type="number"
                   min={1}
                   value={item.quantity}
@@ -217,7 +251,7 @@ const Cart = () => {
                 {/* Remove */}
                 <img
                   onClick={() => updateQuantity(item._id, item.size, 0)}
-                  className="w-4 mr-4 cursor-pointer sm:w-5"
+                  className="w-4 cursor-pointer sm:w-5"
                   src={assets.bin_icon}
                   alt="Remove"
                   title="Remove from cart"
@@ -229,15 +263,15 @@ const Cart = () => {
       )}
 
       {/* Totals + Checkout */}
-      <div className="flex justify-end my-20">
+      <div className="my-20 flex justify-end">
         <div className="w-full sm:w-[450px]">
           {/* On /cart, CartTotal will hide shipping fee automatically */}
           <CartTotal />
           <div className="w-full text-end">
             <button
               onClick={() => navigate("/place-order")}
-              className={`px-8 py-3 my-8 text-sm text-white bg-black active:bg-gray-700 ${
-                isCartEmpty ? "opacity-50 cursor-not-allowed" : ""
+              className={`my-8 px-8 py-3 text-sm text-white bg-black active:bg-gray-700 ${
+                isCartEmpty ? "cursor-not-allowed opacity-50" : ""
               }`}
               disabled={isCartEmpty}
             >

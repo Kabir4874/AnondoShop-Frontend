@@ -43,29 +43,31 @@ const ShopContextProvider = (props) => {
 
   // ----- LocalStorage: load cart on mount -----
   useEffect(() => {
-    const storedCartItems = JSON.parse(localStorage.getItem("cartItems"));
-    if (storedCartItems) {
-      setCartItems(storedCartItems);
-    }
+    try {
+      const stored = localStorage.getItem("cartItems");
+      if (stored) setCartItems(JSON.parse(stored));
+    } catch {}
   }, []);
 
   // ----- LocalStorage: persist cart on change -----
   useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    try {
+      localStorage.setItem("cartItems", JSON.stringify(cartItems));
+    } catch {}
   }, [cartItems]);
 
   // ----- Products -----
   const getProductsData = async () => {
     try {
-      const response = await axios.get(backendUrl + "/api/product/list");
-      if (response.data.success) {
-        setProducts(response.data.products);
+      const { data } = await axios.get(backendUrl + "/api/product/list");
+      if (data.success) {
+        setProducts(data.products || []);
       } else {
-        toast.error(response.data.message);
+        toast.error(data.message || "Failed to load products");
       }
     } catch (error) {
       console.log(error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to load products");
     }
   };
 
@@ -73,24 +75,20 @@ const ShopContextProvider = (props) => {
     getProductsData();
   }, []);
 
-  // ----- Cart -----
+  // ----- Cart (functional, race-safe) -----
   const addToCart = async (itemId, size) => {
     if (!size) {
       toast.error("Please Select a Size");
       return;
-    } else {
-      toast.success("Item Added To The Cart");
     }
 
-    const cartData = structuredClone(cartItems);
-
-    if (cartData[itemId]) {
-      cartData[itemId][size] = (cartData[itemId][size] || 0) + 1;
-    } else {
-      cartData[itemId] = { [size]: 1 };
-    }
-
-    setCartItems(cartData);
+    setCartItems((prev) => {
+      const next = structuredClone(prev || {});
+      if (!next[itemId]) next[itemId] = {};
+      next[itemId][size] = (next[itemId][size] || 0) + 1;
+      return next;
+    });
+    toast.success("Item Added To The Cart");
 
     if (token) {
       try {
@@ -101,19 +99,25 @@ const ShopContextProvider = (props) => {
         );
       } catch (error) {
         console.log(error);
-        toast.error(error.message);
+        toast.error(error.message || "Failed to sync cart");
       }
     }
   };
 
   const updateQuantity = async (itemId, size, quantity) => {
-    if (quantity === 0) {
-      toast.success("Item Removed From The Cart");
-    }
+    setCartItems((prev) => {
+      const next = structuredClone(prev || {});
+      if (!next[itemId]) next[itemId] = {};
+      next[itemId][size] = Math.max(0, Number(quantity) || 0);
 
-    const cartData = structuredClone(cartItems);
-    cartData[itemId][size] = quantity;
-    setCartItems(cartData);
+      // Clean up empty sizes / products
+      if (next[itemId][size] === 0) {
+        delete next[itemId][size];
+        if (Object.keys(next[itemId]).length === 0) delete next[itemId];
+        toast.success("Item Removed From The Cart");
+      }
+      return next;
+    });
 
     if (token) {
       try {
@@ -124,38 +128,79 @@ const ShopContextProvider = (props) => {
         );
       } catch (error) {
         console.log(error);
-        toast.error(error.message);
+        toast.error(error.message || "Failed to sync cart");
+      }
+    }
+  };
+
+  /** Move quantity from one size to another atomically (local), then sync server */
+  const moveCartItemSize = async (itemId, fromSize, toSize) => {
+    if (!itemId || !fromSize || !toSize || fromSize === toSize) return;
+
+    let newQtyForToSize = 0;
+    let oldQtyForFromSize = 0;
+
+    // 1) Atomic local move
+    setCartItems((prev) => {
+      const next = structuredClone(prev || {});
+      const product = next[itemId] || {};
+      const fromQty = Number(product[fromSize] || 0);
+      const toQty = Number(product[toSize] || 0);
+
+      oldQtyForFromSize = fromQty;
+      newQtyForToSize = toQty + fromQty;
+
+      if (!next[itemId]) next[itemId] = {};
+      next[itemId][toSize] = newQtyForToSize;
+      next[itemId][fromSize] = 0;
+
+      // clean up
+      delete next[itemId][fromSize];
+      if (Object.keys(next[itemId]).length === 0) delete next[itemId];
+
+      return next;
+    });
+
+    // 2) Server sync (merge to new size, then zero old size)
+    if (token && oldQtyForFromSize > 0) {
+      try {
+        await axios.post(
+          backendUrl + "/api/cart/update",
+          { itemId, size: toSize, quantity: newQtyForToSize },
+          { headers: authHeaders }
+        );
+        await axios.post(
+          backendUrl + "/api/cart/update",
+          { itemId, size: fromSize, quantity: 0 },
+          { headers: authHeaders }
+        );
+      } catch (error) {
+        console.log(error);
+        toast.error(error.message || "Failed to sync size change");
       }
     }
   };
 
   const getCartCount = () => {
-    let totalCount = 0;
+    let total = 0;
     for (const pid in cartItems) {
-      for (const size in cartItems[pid]) {
-        try {
-          if (cartItems[pid][size] > 0) {
-            totalCount += cartItems[pid][size];
-          }
-        } catch {
-          // ignore
-        }
+      const sizes = cartItems[pid];
+      for (const s in sizes) {
+        const q = Number(sizes[s]) || 0;
+        if (q > 0) total += q;
       }
     }
-    return totalCount;
+    return total;
   };
 
   const getCartAmount = () => {
     let totalAmount = 0;
     for (const pid in cartItems) {
-      const itemInfo = products.find((product) => product._id === pid);
+      const itemInfo = products.find((p) => p._id === pid);
       for (const size in cartItems[pid]) {
-        try {
-          if (cartItems[pid][size] > 0) {
-            totalAmount += (itemInfo?.price || 0) * cartItems[pid][size];
-          }
-        } catch {
-          // ignore
+        const qty = Number(cartItems[pid][size]) || 0;
+        if (qty > 0) {
+          totalAmount += (itemInfo?.price || 0) * qty;
         }
       }
     }
@@ -164,17 +209,17 @@ const ShopContextProvider = (props) => {
 
   const getUserCart = async (tk) => {
     try {
-      const response = await axios.post(
+      const { data } = await axios.post(
         backendUrl + "/api/cart/get",
         {},
         { headers: { token: tk } }
       );
-      if (response.data.success) {
-        setCartItems(response.data.cartData);
+      if (data.success && data.cartData) {
+        setCartItems(data.cartData);
       }
     } catch (error) {
       console.log(error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to fetch cart");
     }
   };
 
@@ -184,13 +229,9 @@ const ShopContextProvider = (props) => {
       setCartItems({});
       localStorage.removeItem("cartItems");
       if (token) {
-        // Server should already clear cart after successful payment (sslSuccess),
-        // but we fetch to ensure client stays in sync.
         await getUserCart(token);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   // Optional public method to re-fetch cart
@@ -198,7 +239,7 @@ const ShopContextProvider = (props) => {
     if (token) await getUserCart(token);
   };
 
-  // ----- Token bootstrap (load from localStorage and fetch cart/profile) -----
+  // ----- Token bootstrap -----
   useEffect(() => {
     const stored = localStorage.getItem("token");
     if (!token && stored) {
@@ -207,7 +248,7 @@ const ShopContextProvider = (props) => {
     }
   }, [token]);
 
-  // Optional helper to set token + persist
+  // Helper to persist token
   const setTokenAndPersist = (tk) => {
     setToken(tk);
     if (tk) {
@@ -230,8 +271,6 @@ const ShopContextProvider = (props) => {
   };
 
   // ----- USER PROFILE API CALLS -----
-
-  // GET /api/user/profile
   const fetchUserProfile = async (tk = token) => {
     if (!tk) return;
     setIsProfileLoading(true);
@@ -266,7 +305,6 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  // PUT /api/user/profile  { name, email }
   const updateUserProfile = async ({ name, email }) => {
     if (!token) {
       toast.error("You must be logged in.");
@@ -302,7 +340,6 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  // POST /api/user/address  { recipientName, phone, addressLine1, district, postalCode }
   const saveUserAddress = async (addr) => {
     if (!token) {
       toast.error("You must be logged in.");
@@ -379,6 +416,7 @@ const ShopContextProvider = (props) => {
     setCartItems,
     addToCart,
     updateQuantity,
+    moveCartItemSize, // <— expose atomic size mover
     getCartCount,
     getCartAmount,
 

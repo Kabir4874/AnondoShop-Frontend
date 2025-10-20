@@ -1,27 +1,82 @@
-import React from 'react'
-import { assets } from '../assets/assets'
+import axios from "axios";
+import { useContext, useEffect, useState } from "react";
+import "swiper/css";
+import "swiper/css/pagination";
+import { Autoplay, Pagination } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { ShopContext } from "../context/ShopContext";
+
+import { assets } from "../assets/assets";
 
 const Hero = () => {
-  return (
-    <div className='flex flex-col border border-gray-400 sm:flex-row'>
-        {/* Hero left side */}
-        <div className='flex items-center justify-center w-full py-10 sm:w-1/2 sm:py-0'>
-            <div className='text-[#414141]'>
-                <div className='flex items-center gap-2'>
-                    <p className='w-8 md:w-11 h-[2px] bg-[#414141]'></p>
-                    <p className='text-sm font-medium md:text-base'>OUR BEST SELLERS</p>
-                </div>
-                <h1 className='text-3xl leading-relaxed sm:py-3 lg:text-5xl prata-regular'>Latest Arrivals</h1>
-                <div className='flex items-center gap-2'>
-                    <p className='text-sm font-semibold md:text-base'>SHOP NOW</p>
-                    <p className='w-8 md:w-11 h-[1px] bg-[#414141]'></p>
-                </div>
-            </div>
-        </div>
-        {/* Hero right side */}
-        <img className='w-full sm:w-1/2' src={assets.hero_img} alt="Hero Image" />
-    </div>
-  )
-}
+  const { backendUrl } = useContext(ShopContext);
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-export default Hero
+  const fetchBanners = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        activeOnly: "1",
+        page: "1",
+        limit: "12",
+      });
+      const { data } = await axios.get(
+        `${backendUrl}/api/content/banners?${params}`
+      );
+      if (data?.success && Array.isArray(data.banners)) {
+        setBanners(data.banners);
+      } else {
+        setBanners([]);
+      }
+    } catch {
+      setBanners([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
+
+  const hasBanners = banners && banners.length > 0;
+
+  return (
+    <div className="relative border border-gray-300 rounded-lg overflow-hidden mt-4">
+      {/* Slider / Fallback */}
+      <div className="relative">
+        {loading ? (
+          <div className="aspect-[16/8] sm:aspect-[16/6] bg-gray-100 animate-pulse" />
+        ) : hasBanners ? (
+          <Swiper
+            modules={[Autoplay, Pagination]}
+            autoplay={{ delay: 3500, disableOnInteraction: false }}
+            loop
+            pagination={{ clickable: true }}
+            className="w-full"
+          >
+            {banners.map((b) => (
+              <SwiperSlide key={b._id}>
+                <img
+                  src={b?.image?.url}
+                  alt=""
+                  className="w-full h-auto object-cover aspect-[16/8] sm:aspect-[16/6]"
+                  loading="lazy"
+                />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          <img
+            className="w-full h-auto object-cover aspect-[16/8] sm:aspect-[16/6]"
+            src={assets.hero_img}
+            alt=""
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Hero;

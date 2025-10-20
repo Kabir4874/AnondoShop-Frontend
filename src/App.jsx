@@ -3,6 +3,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import FloatingWhatsAppButton from "./components/FloatingWhatsAppButton";
 import Footer from "./components/Footer";
+import HeadlinesTicker from "./components/HeadlinesTicker";
 import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
 import About from "./pages/About";
@@ -23,6 +24,7 @@ const App = () => {
     <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
       <ToastContainer />
       <NavBar />
+      <HeadlinesTicker />
       <SearchBar />
 
       <Routes>

@@ -1,35 +1,80 @@
-import { useContext, useMemo, useState } from "react";
+import axios from "axios";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import ProductItem from "../components/ProductItem";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
 
-const CATEGORY_OPTIONS = ["Men", "Women", "Kids"];
-
-const SUBCATEGORY_OPTIONS = [
-  "Belt Combo",
-  "Love Box combo",
-  "Full combo",
-  "প্রিন্ট শার্ট কম্বো",
-  "ছোট কম্বো",
-  "শাড়ি",
-];
-
 const SIZE_OPTIONS = ["S-38", "M-40", "L-42", "XL-44", "XXL-46"];
 
+const effectivePrice = (item) => {
+  const price = Number(item?.price) || 0;
+  const discount = Number(item?.discount) || 0;
+  if (!price) return 0;
+  if (!discount) return price;
+  return Math.max(0, price - (price * discount) / 100);
+};
+
 const Collection = () => {
-  const { products = [], search, showSearch } = useContext(ShopContext);
+  const {
+    products = [],
+    search,
+    showSearch,
+    backendUrl,
+  } = useContext(ShopContext);
 
   const [showFilter, setShowFilter] = useState(false);
 
+  // Dynamic categories (fetched)
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
+  // Filter state
   const [category, setCategory] = useState([]);
-  const [subCategory, setSubCategory] = useState([]);
+  const [subCategory, setSubCategory] = useState([]); // kept if you still use subCategory in products
   const [sizes, setSizes] = useState([]);
   const [bestSellerOnly, setBestSellerOnly] = useState(false);
   const [discountOnly, setDiscountOnly] = useState(false);
   const [sortType, setSortType] = useState("relevant");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
+
+  // Fetch categories (active only)
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        // Your controller expects `active=true|false`
+        const params = new URLSearchParams({
+          active: "true",
+          limit: "200",
+          sort: "name",
+        });
+        const { data } = await axios.get(
+          `${backendUrl}/api/category?${params.toString()}`
+        );
+        if (data?.success) {
+          setCategoryOptions(
+            Array.isArray(data.categories) ? data.categories : []
+          );
+        } else {
+          toast.error(data?.message || "Failed to load categories");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error(
+          err?.response?.data?.message ||
+            err.message ||
+            "Failed to load categories"
+        );
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, [backendUrl]);
 
   const { globalMinPrice, globalMaxPrice } = useMemo(() => {
     if (!products || products.length === 0)
@@ -53,7 +98,6 @@ const Collection = () => {
     );
 
   const toggleCategory = (e) => toggleValue(e.target.value, setCategory);
-  const toggleSubCategory = (e) => toggleValue(e.target.value, setSubCategory);
   const toggleSize = (e) => toggleValue(e.target.value, setSizes);
 
   const clearFilters = () => {
@@ -68,7 +112,11 @@ const Collection = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    let list = Array.isArray(products) ? products.slice() : [];
+    // annotate each with original index (for stable “relevant” order & tiebreakers)
+    let list = (Array.isArray(products) ? products : []).map((p, idx) => ({
+      __idx: idx,
+      ...p,
+    }));
 
     // Search
     if (showSearch && search) {
@@ -83,12 +131,12 @@ const Collection = () => {
       }
     }
 
-    // Category
+    // Category (dynamic)
     if (category.length > 0) {
       list = list.filter((item) => category.includes(item?.category));
     }
 
-    // Sub-category
+    // Sub-category (if you still use it)
     if (subCategory.length > 0) {
       list = list.filter((item) => subCategory.includes(item?.subCategory));
     }
@@ -119,13 +167,33 @@ const Collection = () => {
       });
     }
 
-    if (sortType === "low-high") {
-      list.sort((a, b) => (Number(a?.price) || 0) - (Number(b?.price) || 0));
-    } else if (sortType === "high-low") {
-      list.sort((a, b) => (Number(b?.price) || 0) - (Number(a?.price) || 0));
+    // Sort (by *effective* price when applicable)
+    if (sortType === "low-high" || sortType === "high-low") {
+      list.sort((a, b) => {
+        const pa = effectivePrice(a);
+        const pb = effectivePrice(b);
+
+        // main compare by price
+        const diff = sortType === "low-high" ? pa - pb : pb - pa;
+        if (diff !== 0) return diff;
+
+        // secondary: by name (localeCompare)
+        const na = String(a?.name || "");
+        const nb = String(b?.name || "");
+        const nameDiff = na.localeCompare(nb);
+        if (nameDiff !== 0) return nameDiff;
+
+        // final tiebreaker: original index (stable)
+        return a.__idx - b.__idx;
+      });
+    }
+    // "relevant": keep original order (by __idx)
+    else if (sortType === "relevant") {
+      list.sort((a, b) => a.__idx - b.__idx);
     }
 
-    return list;
+    // strip helper before returning
+    return list.map(({ __idx, ...rest }) => rest);
   }, [
     products,
     showSearch,
@@ -171,7 +239,7 @@ const Collection = () => {
             />
           </button>
 
-          {/* Categories */}
+          {/* Categories (dynamic) */}
           <div
             id="mobile-filters"
             className={`${
@@ -179,49 +247,36 @@ const Collection = () => {
             } sm:block mt-2 sm:mt-6 border border-gray-300 rounded-md py-3 pl-5`}
           >
             <p className="mb-3 text-sm font-medium">CATEGORIES</p>
-            <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-              {CATEGORY_OPTIONS.map((opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    className="w-3 h-3"
-                    type="checkbox"
-                    value={opt}
-                    onChange={toggleCategory}
-                    checked={category.includes(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          </div>
 
-          {/* Sub-categories */}
-          <div
-            className={`${
-              showFilter ? "block" : "hidden"
-            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
-          >
-            <p className="mb-3 text-sm font-medium">SUB-CATEGORIES</p>
-            <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-              {SUBCATEGORY_OPTIONS.map((opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    className="w-3 h-3"
-                    type="checkbox"
-                    value={opt}
-                    onChange={toggleSubCategory}
-                    checked={subCategory.includes(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
+            {loadingCategories ? (
+              <div className="text-xs text-gray-500 px-1 py-1">Loading…</div>
+            ) : categoryOptions.length === 0 ? (
+              <div className="text-xs text-gray-500 px-1 py-1">
+                No categories found.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
+                {categoryOptions.map((opt) => {
+                  const val = opt?.name || opt?.slug || "";
+                  if (!val) return null;
+                  return (
+                    <label
+                      key={opt._id || val}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        className="w-3 h-3"
+                        type="checkbox"
+                        value={val}
+                        onChange={toggleCategory}
+                        checked={category.includes(val)}
+                      />
+                      {val}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Sizes */}
@@ -380,6 +435,7 @@ const Collection = () => {
                   image={item.image}
                   price={item.price}
                   discount={item.discount || 0}
+                  sizes={item.sizes}
                 />
               ))}
             </div>
