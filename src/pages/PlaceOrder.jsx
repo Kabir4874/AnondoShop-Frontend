@@ -1,7 +1,6 @@
 import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import { assets } from "../assets/assets";
 import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
@@ -16,18 +15,9 @@ function computeDeliveryFee(address) {
     .trim();
   const line = String(address.addressLine1 || "").toLowerCase();
 
-  // Priority: Dhaka
-  if (d === "dhaka") {
-    return { fee: 80, label: "Dhaka" };
-  }
+  if (d === "dhaka") return { fee: 80, label: "Dhaka" };
+  if (d === "gazipur") return { fee: 120, label: "Gazipur" };
 
-  // Gazipur (district)
-  if (d === "gazipur") {
-    return { fee: 120, label: "Gazipur" };
-  }
-
-  // Savar / Ashulia (often part of Dhaka district but requested to be special-cased)
-  // typo-safe: asulia / ashulia
   const savarHit = d.includes("savar") || line.includes("savar");
   const ashuliaHit =
     d.includes("ashulia") ||
@@ -35,11 +25,8 @@ function computeDeliveryFee(address) {
     line.includes("ashulia") ||
     line.includes("asulia");
 
-  if (savarHit || ashuliaHit) {
-    return { fee: 120, label: "Savar/Ashulia" };
-  }
+  if (savarHit || ashuliaHit) return { fee: 120, label: "Savar/Ashulia" };
 
-  // Default others
   return { fee: 150, label: "Other" };
 }
 
@@ -66,7 +53,8 @@ function calcCartSubtotal(products = [], cartItems = {}) {
 }
 
 const PlaceOrder = () => {
-  const [method, setMethod] = useState("cod");
+  // Default to COD or bKash as you prefer:
+  const [method, setMethod] = useState("bkash"); // "cod" | "bkash"
 
   const {
     navigate,
@@ -222,14 +210,13 @@ const PlaceOrder = () => {
       }
     }
 
-    // 3) Place order — amount = subtotal + dynamic delivery fee
+    // 3) Place / Pay
     try {
       const amount = subtotal + deliveryFee;
-
       const orderData = {
         address: addressToUse, // minimal BD schema
         items,
-        amount,
+        amount, // still computed client-side for UX; backend recalculates authoritatively
       };
 
       if (method === "cod") {
@@ -245,18 +232,46 @@ const PlaceOrder = () => {
         } else {
           toast.error(data.message || "Failed to place order");
         }
-      } else if (method === "sslcommerz") {
+      } else if (method === "bkash") {
+        // Create bKash payment (backend will compute totals & create pending order)
         const { data } = await axios.post(
-          `${backendUrl}/api/order/ssl/initiate`,
-          orderData,
+          `${backendUrl}/api/order/bkash/create`,
+          { items, address: addressToUse },
           { headers }
         );
-        if (data.success && data.url) {
-          window.location.replace(data.url);
+
+        if (data?.success) {
+          // Backends commonly return one of these keys; support all just in case
+          const redirectUrl =
+            data?.url ||
+            data?.redirectURL ||
+            data?.redirectUrl ||
+            data?.bkashURL ||
+            data?.data?.bkashURL ||
+            data?.data?.url ||
+            data?.data?.redirectURL;
+
+          if (redirectUrl) {
+            window.location.replace(redirectUrl);
+          } else {
+            toast.error("bKash URL missing in response");
+          }
         } else {
-          toast.error(data.message || "Failed to initialize payment");
+          toast.error(data?.message || "Failed to initialize bKash payment");
         }
       }
+      // else if (method === "sslcommerz") {
+      //   const { data } = await axios.post(
+      //     `${backendUrl}/api/order/ssl/initiate`,
+      //     orderData,
+      //     { headers }
+      //   );
+      //   if (data.success && data.url) {
+      //     window.location.replace(data.url);
+      //   } else {
+      //     toast.error(data.message || "Failed to initialize payment");
+      //   }
+      // }
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Something went wrong");
@@ -340,7 +355,29 @@ const PlaceOrder = () => {
 
         <div className="mt-12">
           <Title text1={"PAYMENT"} text2={"METHODS"} />
+
           <div className="flex flex-col gap-3 lg:flex-row">
+            {/* bKash */}
+            <div
+              onClick={() => setMethod("bkash")}
+              className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
+            >
+              <p
+                className={`min-w-3.5 h-3.5 border rounded-full ${
+                  method === "bkash" ? "bg-green-600" : ""
+                }`}
+              ></p>
+              <img
+                className="h-5 mx-4"
+                src={
+                  "https://freelogopng.com/images/all_img/1656227518bkash-logo-png.png"
+                }
+                alt="bKash"
+              />
+            </div>
+
+            {/* SSLCommerz (commented as requested) */}
+            {/*
             <div
               onClick={() => setMethod("sslcommerz")}
               className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
@@ -350,13 +387,11 @@ const PlaceOrder = () => {
                   method === "sslcommerz" ? "bg-green-600" : ""
                 }`}
               ></p>
-              <img
-                className="h-5 mx-4"
-                src={assets.ssl_logo}
-                alt="SSLCommerz"
-              />
+              <img className="h-5 mx-4" src={assets.ssl_logo} alt="SSLCommerz" />
             </div>
+            */}
 
+            {/* COD */}
             <div
               onClick={() => setMethod("cod")}
               className="flex items-center gap-3 p-2 px-3 border cursor-pointer"

@@ -1,11 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 import RelatedProducts from "../components/RelatedProducts";
 import { ShopContext } from "../context/ShopContext";
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, addToCart } = useContext(ShopContext);
+  const { products, addToCart, navigate } = useContext(ShopContext);
 
   const [productData, setProductData] = useState(null);
   const [activeImage, setActiveImage] = useState("");
@@ -56,6 +57,37 @@ const Product = () => {
   if (!productData) {
     return <div className="opacity-0" />;
   }
+
+  const requiresSize =
+    Array.isArray(productData.sizes) && productData.sizes.length > 0;
+
+  const ensureSizeOrToast = () => {
+    if (requiresSize && !size) {
+      toast.error("Please select a size first.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleWhatsAppOrder = () => {
+    if (!ensureSizeOrToast()) return;
+    const phone = "8801876694376";
+    const pageUrl = typeof window !== "undefined" ? window.location.href : "";
+    const msg = `হ্যালো! আমি এই প্রোডাক্টটি অর্ডার করতে চাইঃ
+- প্রোডাক্ট: ${productData.name}
+- সাইজ: ${size || "N/A"}
+- দাম: ৳${formatBDT(finalPrice)}
+লিংক: ${pageUrl}
+
+অনুগ্রহ করে কনফার্ম করুন।`;
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleAddToCart = () => {
+    if (!ensureSizeOrToast()) return;
+    addToCart(productData._id, size);
+  };
 
   return (
     <div className="pt-10 transition-opacity duration-500 ease-in border-t-2 opacity-100">
@@ -133,17 +165,32 @@ const Product = () => {
             </div>
           )}
 
-          <button
-            onClick={() => addToCart(productData._id, size)}
-            className="px-8 py-3 text-sm text-white bg-black active:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              Array.isArray(productData.sizes) &&
-              productData.sizes.length > 0 &&
-              !size
-            }
-          >
-            ADD TO CART
-          </button>
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3 sm:w-4/5">
+            {/* Confirm Order (green) */}
+            <button
+              onClick={handleWhatsAppOrder}
+              className="w-full py-3 text-white font-semibold rounded bg-green-600 hover:bg-green-700 active:scale-[.99] transition"
+            >
+              অর্ডার কনফার্ম করুন
+            </button>
+
+            {/* WhatsApp Order (green) */}
+            <button
+              onClick={handleWhatsAppOrder}
+              className="w-full py-3 text-white font-semibold rounded bg-green-700 hover:bg-green-800 active:scale-[.99] transition"
+            >
+              WHATSAPP এ অর্ডার করুন
+            </button>
+
+            {/* Add to Cart */}
+            <button
+              onClick={handleAddToCart}
+              className="w-full px-8 py-3 text-sm text-white bg-black active:bg-gray-700 rounded transition"
+            >
+              ADD TO CART
+            </button>
+          </div>
 
           <hr className="mt-8 sm:w-4/5" />
           <div className="flex flex-col gap-1 mt-5 text-sm text-gray-500">
@@ -167,7 +214,6 @@ const Product = () => {
           {productData.longDescription ? (
             <div
               className="prose max-w-none prose-sm sm:prose"
-              // longDescription may contain HTML from ReactQuill
               dangerouslySetInnerHTML={{ __html: productData.longDescription }}
             />
           ) : (
@@ -179,12 +225,11 @@ const Product = () => {
                 premium materials that ensure both durability and comfort.
               </p>
               <p>
-                Whether you're dressing up for a special occasion or adding a
-                touch of sophistication to your everyday look, the Trendify
+                Whether you&apos;re dressing up for a special occasion or adding
+                a touch of sophistication to your everyday look, the Trendify
                 quality products offer unparalleled versatility. Its timeless
                 design, coupled with a flawless fit, makes it a must-have
-                addition to any wardrobe. Don’t miss out on the chance to own a
-                piece that combines both form and function—experience the
+                addition to any wardrobe. Don’t miss out—experience the
                 difference today.
               </p>
             </>
