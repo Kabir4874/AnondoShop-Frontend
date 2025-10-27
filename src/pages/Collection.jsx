@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import ProductItem from "../components/ProductItem";
@@ -23,6 +24,9 @@ const Collection = () => {
     showSearch,
     backendUrl,
   } = useContext(ShopContext);
+
+  const [searchParams] = useSearchParams();
+  const initialCategoryFromURL = (searchParams.get("category") || "").trim();
 
   const [showFilter, setShowFilter] = useState(false);
 
@@ -75,6 +79,15 @@ const Collection = () => {
 
     fetchCategories();
   }, [backendUrl]);
+
+  // Apply category from URL on mount & whenever it changes
+  useEffect(() => {
+    if (initialCategoryFromURL) {
+      setCategory([initialCategoryFromURL]);
+      // make filters visible on mobile to highlight the selection
+      setShowFilter(true);
+    }
+  }, [initialCategoryFromURL]);
 
   const { globalMinPrice, globalMaxPrice } = useMemo(() => {
     if (!products || products.length === 0)
@@ -211,7 +224,7 @@ const Collection = () => {
   const totalResults = filteredProducts.length;
 
   return (
-    <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 border-t">
+    <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 border-top">
       <div className="flex flex-col sm:flex-row sm:gap-10 gap-4">
         {/* Filter Column */}
         <aside className="w-full sm:min-w-64 sm:w-64">
@@ -373,7 +386,10 @@ const Collection = () => {
           <button
             className={`${
               showFilter ? "inline-flex" : "hidden"
-            } sm:inline-flex items-center justify-center px-4 py-2 mt-1 text-white bg-black rounded hover:bg-gray-900 w-full sm:w-auto`}
+            } sm:inline-flex items-center justify-center px-4 py-2 mt-1 text-white bg-black rounded hover:bg-gray-900 w/full sm:w-auto`.replace(
+              "/",
+              "-"
+            )}
             onClick={clearFilters}
             type="button"
           >
@@ -390,6 +406,19 @@ const Collection = () => {
               <span className="text-xs text-gray-500 mt-1">
                 {totalResults} result{totalResults === 1 ? "" : "s"}
               </span>
+              {category.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {category.map((c) => (
+                    <span
+                      key={c}
+                      className="text-xs px-2 py-1 rounded-full border bg-white"
+                      title="Active category filter"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Sort control */}

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -6,6 +7,7 @@ import Footer from "./components/Footer";
 import HeadlinesTicker from "./components/HeadlinesTicker";
 import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
+import { initMarketingPixels } from "./lib/tracking";
 import About from "./pages/About";
 import Cart from "./pages/Cart";
 import Collection from "./pages/Collection";
@@ -17,9 +19,12 @@ import PaymentResult from "./pages/PaymentResult";
 import PlaceOrder from "./pages/PlaceOrder";
 import Product from "./pages/Product";
 import Profile from "./pages/Profile";
-import Verify from "./pages/Verify";
+export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 const App = () => {
+  useEffect(() => {
+    initMarketingPixels(backendUrl);
+  }, []);
   return (
     <div className="px-4 sm:px-[5vw] md:px-[7vw] lg:px-[9vw]">
       <ToastContainer />
@@ -39,7 +44,6 @@ const App = () => {
         <Route path="/place-order" element={<PlaceOrder />} />
         <Route path="/payment-result" element={<PaymentResult />} />
         <Route path="/orders" element={<Orders />} />
-        <Route path="/verify" element={<Verify />} />
       </Routes>
       <Footer />
       <FloatingWhatsAppButton />

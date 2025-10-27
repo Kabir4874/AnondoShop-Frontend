@@ -1,8 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { backendUrl } from "../App";
 import RelatedProducts from "../components/RelatedProducts";
 import { ShopContext } from "../context/ShopContext";
+import { trackEvent } from "../lib/tracking";
 
 const Product = () => {
   const { productId } = useParams();
@@ -87,7 +89,20 @@ const Product = () => {
   const handleAddToCart = () => {
     if (!ensureSizeOrToast()) return;
     addToCart(productData._id, size);
+    trackEvent(backendUrl, {
+      name: "AddToCart",
+      content_ids: [productData._id],
+      content_name: productData.name,
+      value: finalPrice,
+      currency: "BDT",
+    });
   };
+
+  trackEvent(backendUrl, {
+    name: "ViewContent",
+    content_ids: [productData._id],
+    content_name: productData.name,
+  });
 
   return (
     <div className="pt-10 transition-opacity duration-500 ease-in border-t-2 opacity-100">

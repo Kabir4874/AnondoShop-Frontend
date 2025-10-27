@@ -62,16 +62,11 @@ const FloatingWhatsAppButton = () => {
           <span className="px-2 py-1 text-xs rounded-md bg-blue-600 text-white shadow hidden sm:inline-block group-hover:translate-x-[-4px] transition">
             Messenger
           </span>
-          <button
-            type="button"
-            className="h-12 w-12 rounded-full bg-[#0084FF] text-white shadow-lg grid place-items-center hover:scale-105 active:scale-95 transition"
-            title="Messenger"
-          >
-            {/* Messenger Icon */}
-            <svg viewBox="0 0 32 32" className="h-6 w-6 fill-current">
-              <path d="M16 3C8.82 3 3 8.3 3 14.83c0 3.6 1.77 6.83 4.64 8.94V29l4.24-2.33c1.26.35 2.6.54 4.01.54 7.18 0 13-5.3 13-11.83S23.18 3 16 3zm1.02 13.85l-3.38-3.62-6.53 3.62 7.43-7.93 3.38 3.62 6.53-3.62-7.43 7.93z" />
-            </svg>
-          </button>
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Facebook_Messenger_logo_2020.svg/2048px-Facebook_Messenger_logo_2020.svg.png"
+            alt=""
+            className="w-12 h-12"
+          />
         </a>
 
         {/* Call */}
@@ -108,16 +103,11 @@ const FloatingWhatsAppButton = () => {
           <span className="px-2 py-1 text-xs rounded-md bg-[#25D366] text-white shadow hidden sm:inline-block group-hover:translate-x-[-4px] transition">
             WhatsApp
           </span>
-          <button
-            type="button"
-            className="h-12 w-12 rounded-full bg-[#25D366] text-white shadow-lg grid place-items-center hover:scale-105 active:scale-95 transition"
-            title="WhatsApp"
-          >
-            {/* WhatsApp Icon */}
-            <svg viewBox="0 0 32 32" className="h-6 w-6 fill-current">
-              <path d="M19.11 17.33c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.32.2-.59.07-.27-.14-1.12-.41-2.14-1.31-.79-.7-1.31-1.56-1.47-1.83-.16-.27-.02-.42.12-.56.12-.12.27-.32.41-.48.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.02-.22-.53-.45-.45-.61-.45-.16 0-.34-.02-.52-.02-.18 0-.48.07-.73.34-.25.27-.96.94-.96 2.29s.98 2.66 1.12 2.84c.14.18 1.93 2.93 4.68 4.12.65.28 1.16.45 1.55.58.65.21 1.24.18 1.71.11.52-.08 1.6-.65 1.83-1.28.23-.63.23-1.17.16-1.28-.07-.11-.25-.18-.52-.32zM16.04 5C10.52 5 6.06 9.45 6.06 14.98c0 2.13.64 4.11 1.74 5.76L6 27l6.43-1.68a10.05 10.05 0 003.61.66c5.52 0 9.98-4.45 9.98-9.98C26.02 9.45 21.56 5 16.04 5z" />
-            </svg>
-          </button>
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/512px-WhatsApp.svg.png"
+            alt=""
+            className="w-14 h-14"
+          />
         </a>
       </div>
 

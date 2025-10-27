@@ -15,7 +15,7 @@ const ShopContextProvider = (props) => {
   const navigate = useNavigate();
 
   // ----- Config -----
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+ const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const currency = "&#2547;";
   const delivery_fee = 150;
 

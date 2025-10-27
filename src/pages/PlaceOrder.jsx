@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
+import { trackEvent } from "../lib/tracking"; // <-- ADD: tracking helper
 
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
 const BD_POSTAL_REGEX = /^\d{4}$/;
@@ -67,6 +68,9 @@ const PlaceOrder = () => {
     // For autofill + sync with profile
     address: savedAddress,
     setAddress: setSavedAddress,
+
+    // <-- ADD: we need email for tracking
+    user,
   } = useContext(ShopContext);
 
   // Local form state (autofill from saved address)
@@ -216,7 +220,7 @@ const PlaceOrder = () => {
       const orderData = {
         address: addressToUse, // minimal BD schema
         items,
-        amount, // still computed client-side for UX; backend recalculates authoritatively
+        amount, // backend recalculates authoritatively
       };
 
       if (method === "cod") {
@@ -226,6 +230,24 @@ const PlaceOrder = () => {
           { headers }
         );
         if (data.success) {
+          // --- TRACKING: Purchase (COD) ---
+          try {
+            await trackEvent(backendUrl, {
+              name: "Purchase",
+              eventId: data.orderId, // unique id from backend
+              email: user?.email,
+              phone: addressToUse?.phone,
+              value: amount,
+              currency: "BDT",
+              content_ids: items.map((i) => String(i._id || i.productId)),
+              content_name: data.orderId ? `Order #${data.orderId}` : "Order",
+              // optional extras:
+              // contents: items.map(i => ({ id: i._id, quantity: i.quantity, item_price: i.price })),
+            });
+          } catch (_) {
+            // Never block UX on analytics errors
+          }
+
           setCartItems({});
           toast.success("Order placed successfully");
           navigate("/orders");

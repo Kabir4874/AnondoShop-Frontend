@@ -1,23 +1,77 @@
-import { useContext, useEffect, useMemo } from "react";
+import axios from "axios";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { backendUrl } from "../App";
 import { ShopContext } from "../context/ShopContext";
+import { trackEvent } from "../lib/tracking";
 
 const PaymentResult = () => {
-  const { clearCart, refreshUserCart, navigate } = useContext(ShopContext);
+  const { clearCart, refreshUserCart, navigate, token, user, address } =
+    useContext(ShopContext);
   const { search } = useLocation();
 
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const status = params.get("status");
   const orderId = params.get("orderId");
 
+  // Prevent duplicate firing on React StrictMode / re-renders
+  const firedRef = useRef(false);
+
   useEffect(() => {
-    if (status === "success") {
-      (async () => {
+    if (status !== "success" || firedRef.current) return;
+
+    firedRef.current = true;
+
+    (async () => {
+      try {
+        // keep UI/cart in sync
         await clearCart();
         await refreshUserCart();
-      })();
-    }
-  }, [status, clearCart, refreshUserCart]);
+
+        // Try to fetch the latest orders and locate this order to get items/amount
+        let orderData = null;
+        if (token && orderId) {
+          const { data } = await axios.get(
+            `${backendUrl}/api/order/userorders`,
+            { headers: { token } }
+          );
+          if (data?.success && Array.isArray(data.orders)) {
+            orderData =
+              data.orders.find((o) => String(o._id) === orderId) || null;
+          }
+        }
+
+        // Build tracking payload
+        const payload = {
+          name: "Purchase",
+          eventId: orderId || undefined,
+          email: user?.email || undefined,
+          phone: address?.phone || undefined,
+          value: orderData?.amount ?? undefined,
+          currency: "BDT",
+          content_ids: Array.isArray(orderData?.items)
+            ? orderData.items.map((it) =>
+                String(it.productId || it._id || it.id || "").trim()
+              )
+            : undefined,
+          content_name: orderId ? `Order #${orderId}` : undefined,
+        };
+
+        // Fire both client pixel(s) and server-side events
+        await trackEvent(backendUrl, payload);
+      } catch {
+        // Silent failure: we don't block the page for tracking issues
+      }
+    })();
+  }, [
+    status,
+    orderId,
+    token,
+    user?.email,
+    address?.phone,
+    clearCart,
+    refreshUserCart,
+  ]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
