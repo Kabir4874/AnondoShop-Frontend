@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
-import { trackEvent } from "../lib/tracking"; // <-- ADD: tracking helper
+import { trackEvent } from "../lib/tracking";
 
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
 const BD_POSTAL_REGEX = /^\d{4}$/;
@@ -31,7 +31,6 @@ function computeDeliveryFee(address) {
   return { fee: 150, label: "Other" };
 }
 
-// Keep subtotal logic consistent with CartTotal (includes discount)
 function calcCartSubtotal(products = [], cartItems = {}) {
   const map = new Map(products.map((p) => [p._id, p]));
   let sub = 0;
