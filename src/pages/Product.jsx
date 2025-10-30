@@ -71,6 +71,19 @@ const Product = () => {
     return true;
   };
 
+  const handleConfirmOrder = () => {
+    if (!ensureSizeOrToast()) return;
+    addToCart(productData._id, size);
+    trackEvent(backendUrl, {
+      name: "InitiateCheckout",
+      content_ids: [productData._id],
+      content_name: productData.name,
+      value: finalPrice,
+      currency: "BDT",
+    });
+    navigate("/place-order");
+  };
+
   const handleWhatsAppOrder = () => {
     if (!ensureSizeOrToast()) return;
     const phone = "8801876694376";
@@ -184,7 +197,7 @@ const Product = () => {
           <div className="flex flex-col gap-3 sm:w-4/5">
             {/* Confirm Order (green) */}
             <button
-              onClick={handleWhatsAppOrder}
+              onClick={handleConfirmOrder}
               className="w-full py-3 text-white font-semibold rounded bg-green-600 hover:bg-green-700 active:scale-[.99] transition"
             >
               অর্ডার কনফার্ম করুন

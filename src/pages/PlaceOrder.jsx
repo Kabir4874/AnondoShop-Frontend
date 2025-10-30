@@ -7,7 +7,6 @@ import { ShopContext } from "../context/ShopContext";
 import { trackEvent } from "../lib/tracking";
 
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
-const BD_POSTAL_REGEX = /^\d{4}$/;
 
 function computeDeliveryFee(address) {
   if (!address) return { fee: 150, label: "Other" };
@@ -72,13 +71,12 @@ const PlaceOrder = () => {
     user,
   } = useContext(ShopContext);
 
-  // Local form state (autofill from saved address)
+  // Local form state (autofill from saved address) — postalCode removed
   const [formAddress, setFormAddress] = useState({
     recipientName: "",
     phone: "",
     addressLine1: "",
     district: "",
-    postalCode: "",
   });
 
   // Autofill whenever savedAddress changes (e.g., user saved in Profile)
@@ -89,7 +87,6 @@ const PlaceOrder = () => {
         phone: savedAddress.phone || "",
         addressLine1: savedAddress.addressLine1 || "",
         district: savedAddress.district || "",
-        postalCode: savedAddress.postalCode || "",
       });
     }
   }, [savedAddress]);
@@ -105,29 +102,22 @@ const PlaceOrder = () => {
     !addr?.recipientName &&
     !addr?.phone &&
     !addr?.addressLine1 &&
-    !addr?.district &&
-    !addr?.postalCode;
+    !addr?.district;
 
   const hasAddressChanged = (a = {}, b = {}) =>
     (a.recipientName || "") !== (b.recipientName || "") ||
     (a.phone || "") !== (b.phone || "") ||
     (a.addressLine1 || "") !== (b.addressLine1 || "") ||
-    (a.district || "") !== (b.district || "") ||
-    (a.postalCode || "") !== (b.postalCode || "");
+    (a.district || "") !== (b.district || "");
 
   const validateAddress = (addr) => {
-    const { recipientName, phone, addressLine1, district, postalCode } =
-      addr || {};
-    if (!recipientName || !phone || !addressLine1 || !district || !postalCode) {
+    const { recipientName, phone, addressLine1, district } = addr || {};
+    if (!recipientName || !phone || !addressLine1 || !district) {
       toast.error("All address fields are required.");
       return false;
     }
     if (!BD_PHONE_REGEX.test(phone)) {
       toast.error("Invalid Bangladesh phone number.");
-      return false;
-    }
-    if (!BD_POSTAL_REGEX.test(postalCode)) {
-      toast.error("Postal code must be a 4-digit Bangladesh postcode.");
       return false;
     }
     return true;
@@ -217,7 +207,7 @@ const PlaceOrder = () => {
     try {
       const amount = subtotal + deliveryFee;
       const orderData = {
-        address: addressToUse, // minimal BD schema
+        address: addressToUse, // minimal BD schema (no postalCode)
         items,
         amount, // backend recalculates authoritatively
       };
@@ -240,8 +230,6 @@ const PlaceOrder = () => {
               currency: "BDT",
               content_ids: items.map((i) => String(i._id || i.productId)),
               content_name: data.orderId ? `Order #${data.orderId}` : "Order",
-              // optional extras:
-              // contents: items.map(i => ({ id: i._id, quantity: i.quantity, item_price: i.price })),
             });
           } catch (_) {
             // Never block UX on analytics errors
@@ -262,7 +250,6 @@ const PlaceOrder = () => {
         );
 
         if (data?.success) {
-          // Backends commonly return one of these keys; support all just in case
           const redirectUrl =
             data?.url ||
             data?.redirectURL ||
@@ -350,16 +337,6 @@ const PlaceOrder = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded"
             type="text"
             placeholder="District (e.g., Dhaka / Gazipur)"
-          />
-          <input
-            required
-            name="postalCode"
-            value={formAddress.postalCode}
-            onChange={onChangeAddress}
-            className="w-full px-4 py-2 border border-gray-300 rounded"
-            type="text"
-            inputMode="numeric"
-            placeholder="Postal Code (4 digits)"
           />
         </div>
       </div>
