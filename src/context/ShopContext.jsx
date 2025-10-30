@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 
 export const ShopContext = createContext();
 
+const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
+
 const ShopContextProvider = (props) => {
   // ----- UI / Search -----
   const [search, setSearch] = useState("");
@@ -15,16 +17,15 @@ const ShopContextProvider = (props) => {
   const navigate = useNavigate();
 
   // ----- Config -----
- const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const currency = "&#2547;";
-  const delivery_fee = 150;
 
-  // ----- Products / Cart -----
+  // ----- Products / Cart (local only) -----
   const [products, setProducts] = useState([]);
-  const [cartItems, setCartItems] = useState({});
+  const [cartItems, setCartItems] = useState({}); // { [productId]: { [size]: qty } }
 
-  // ----- Profile / Address -----
-  const [user, setUser] = useState({ name: "", email: "" });
+  // ----- Profile / Address (phone-only) -----
+  const [user, setUser] = useState({ name: "", phone: "" });
   const [address, setAddress] = useState({
     recipientName: "",
     phone: "",
@@ -35,11 +36,24 @@ const ShopContextProvider = (props) => {
 
   // Loading flags for profile-related calls
   const [isProfileLoading, setIsProfileLoading] = useState(false);
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   // Common headers (memoized)
   const authHeaders = useMemo(() => (token ? { token } : {}), [token]);
+
+  // ===== Local helpers =====
+  const isXXL = (size) => {
+    if (!size) return false;
+    const s = String(size).toUpperCase();
+    return s.startsWith("XXL");
+  };
+
+  const effectivePrice = (item) => {
+    const base = Number(item?.price) || 0;
+    const disc = Number(item?.discount) || 0;
+    if (disc > 0) return Math.max(0, base - (base * disc) / 100);
+    return base;
+  };
 
   // ----- LocalStorage: load cart on mount -----
   useEffect(() => {
@@ -73,15 +87,15 @@ const ShopContextProvider = (props) => {
 
   useEffect(() => {
     getProductsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ----- Cart (functional, race-safe) -----
-  const addToCart = async (itemId, size) => {
+  // ----- Cart (LOCAL ONLY) -----
+  const addToCart = (itemId, size) => {
     if (!size) {
       toast.error("Please Select a Size");
       return;
     }
-
     setCartItems((prev) => {
       const next = structuredClone(prev || {});
       if (!next[itemId]) next[itemId] = {};
@@ -89,22 +103,9 @@ const ShopContextProvider = (props) => {
       return next;
     });
     toast.success("Item Added To The Cart");
-
-    if (token) {
-      try {
-        await axios.post(
-          backendUrl + "/api/cart/add",
-          { itemId, size },
-          { headers: authHeaders }
-        );
-      } catch (error) {
-        console.log(error);
-        toast.error(error.message || "Failed to sync cart");
-      }
-    }
   };
 
-  const updateQuantity = async (itemId, size, quantity) => {
+  const updateQuantity = (itemId, size, quantity) => {
     setCartItems((prev) => {
       const next = structuredClone(prev || {});
       if (!next[itemId]) next[itemId] = {};
@@ -118,67 +119,27 @@ const ShopContextProvider = (props) => {
       }
       return next;
     });
-
-    if (token) {
-      try {
-        await axios.post(
-          backendUrl + "/api/cart/update",
-          { itemId, size, quantity },
-          { headers: authHeaders }
-        );
-      } catch (error) {
-        console.log(error);
-        toast.error(error.message || "Failed to sync cart");
-      }
-    }
   };
 
-  /** Move quantity from one size to another atomically (local), then sync server */
-  const moveCartItemSize = async (itemId, fromSize, toSize) => {
+  /** Move quantity from one size to another atomically (local) */
+  const moveCartItemSize = (itemId, fromSize, toSize) => {
     if (!itemId || !fromSize || !toSize || fromSize === toSize) return;
 
-    let newQtyForToSize = 0;
-    let oldQtyForFromSize = 0;
-
-    // 1) Atomic local move
     setCartItems((prev) => {
       const next = structuredClone(prev || {});
       const product = next[itemId] || {};
       const fromQty = Number(product[fromSize] || 0);
       const toQty = Number(product[toSize] || 0);
 
-      oldQtyForFromSize = fromQty;
-      newQtyForToSize = toQty + fromQty;
+      if (fromQty <= 0) return next;
 
       if (!next[itemId]) next[itemId] = {};
-      next[itemId][toSize] = newQtyForToSize;
-      next[itemId][fromSize] = 0;
-
-      // clean up
+      next[itemId][toSize] = toQty + fromQty;
       delete next[itemId][fromSize];
-      if (Object.keys(next[itemId]).length === 0) delete next[itemId];
 
+      if (Object.keys(next[itemId]).length === 0) delete next[itemId];
       return next;
     });
-
-    // 2) Server sync (merge to new size, then zero old size)
-    if (token && oldQtyForFromSize > 0) {
-      try {
-        await axios.post(
-          backendUrl + "/api/cart/update",
-          { itemId, size: toSize, quantity: newQtyForToSize },
-          { headers: authHeaders }
-        );
-        await axios.post(
-          backendUrl + "/api/cart/update",
-          { itemId, size: fromSize, quantity: 0 },
-          { headers: authHeaders }
-        );
-      } catch (error) {
-        console.log(error);
-        toast.error(error.message || "Failed to sync size change");
-      }
-    }
   };
 
   const getCartCount = () => {
@@ -193,6 +154,7 @@ const ShopContextProvider = (props) => {
     return total;
   };
 
+  /** Local estimate: discount-applied price + XXL surcharge (+50/item) */
   const getCartAmount = () => {
     let totalAmount = 0;
     for (const pid in cartItems) {
@@ -200,43 +162,21 @@ const ShopContextProvider = (props) => {
       for (const size in cartItems[pid]) {
         const qty = Number(cartItems[pid][size]) || 0;
         if (qty > 0) {
-          totalAmount += (itemInfo?.price || 0) * qty;
+          const unit = effectivePrice(itemInfo);
+          const xxlFee = isXXL(size) ? 50 : 0;
+          totalAmount += (unit + xxlFee) * qty;
         }
       }
     }
     return totalAmount;
   };
 
-  const getUserCart = async (tk) => {
-    try {
-      const { data } = await axios.post(
-        backendUrl + "/api/cart/get",
-        {},
-        { headers: { token: tk } }
-      );
-      if (data.success && data.cartData) {
-        setCartItems(data.cartData);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error.message || "Failed to fetch cart");
-    }
-  };
-
-  // Helper: fully clear local cart + try to sync with server
-  const clearCart = async () => {
+  // Helper: fully clear local cart
+  const clearCart = () => {
     try {
       setCartItems({});
       localStorage.removeItem("cartItems");
-      if (token) {
-        await getUserCart(token);
-      }
     } catch {}
-  };
-
-  // Optional public method to re-fetch cart
-  const refreshUserCart = async () => {
-    if (token) await getUserCart(token);
   };
 
   // ----- Token bootstrap -----
@@ -244,7 +184,6 @@ const ShopContextProvider = (props) => {
     const stored = localStorage.getItem("token");
     if (!token && stored) {
       setToken(stored);
-      getUserCart(stored);
     }
   }, [token]);
 
@@ -253,11 +192,10 @@ const ShopContextProvider = (props) => {
     setToken(tk);
     if (tk) {
       localStorage.setItem("token", tk);
-      getUserCart(tk);
       fetchUserProfile(tk); // prefetch profile
     } else {
       localStorage.removeItem("token");
-      setUser({ name: "", email: "" });
+      setUser({ name: "", phone: "" });
       setAddress({
         recipientName: "",
         phone: "",
@@ -280,7 +218,7 @@ const ShopContextProvider = (props) => {
       });
       if (res?.data?.success) {
         const u = res.data.user || {};
-        setUser({ name: u.name || "", email: u.email || "" });
+        setUser({ name: u.name || "", phone: u.phone || "" });
 
         const addr = u.address || {};
         setAddress({
@@ -305,41 +243,6 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  const updateUserProfile = async ({ name, email }) => {
-    if (!token) {
-      toast.error("You must be logged in.");
-      return;
-    }
-    if (!name || !email) {
-      toast.error("Name and email are required.");
-      return;
-    }
-
-    setIsSavingProfile(true);
-    try {
-      const res = await axios.put(
-        backendUrl + "/api/user/profile",
-        { name, email },
-        { headers: authHeaders }
-      );
-      if (res?.data?.success) {
-        setUser({ name, email });
-        toast.success("Profile updated successfully");
-      } else {
-        toast.error(res?.data?.message || "Failed to update profile");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        error?.response?.data?.message ||
-          error.message ||
-          "Failed to update profile"
-      );
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
   const saveUserAddress = async (addr) => {
     if (!token) {
       toast.error("You must be logged in.");
@@ -350,6 +253,10 @@ const ShopContextProvider = (props) => {
       addr || {};
     if (!recipientName || !phone || !addressLine1 || !district || !postalCode) {
       toast.error("All address fields are required.");
+      return;
+    }
+    if (!BD_PHONE_REGEX.test(String(phone))) {
+      toast.error("Invalid Bangladesh phone number.");
       return;
     }
 
@@ -384,18 +291,124 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  // (Optional) Call once after token loads to hydrate profile
+  // Hydrate profile when token changes
   useEffect(() => {
     if (token) fetchUserProfile(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // ====== CHECKOUT HELPERS (create account by phone implicitly) ======
+  /**
+   * Place COD order.
+   * Backend will ensure/create user by phone and return { token, passwordSet, orderId }.
+   */
+  const placeOrderCOD = async ({ phone, name, items, shipTo }) => {
+    try {
+      if (!phone) {
+        toast.error("Phone is required");
+        return { success: false };
+      }
+      const addressPayload = shipTo || address;
+      const { data } = await axios.post(backendUrl + "/api/order/place", {
+        phone,
+        name,
+        items,
+        address: addressPayload,
+      });
+      if (data?.success) {
+        if (data.token) setTokenAndPersist(data.token);
+        return {
+          success: true,
+          orderId: data.orderId,
+          passwordSet: data.passwordSet,
+        };
+      }
+      toast.error(data?.message || "Order failed");
+      return { success: false };
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err?.response?.data?.message || err.message || "Order failed"
+      );
+      return { success: false };
+    }
+  };
+
+  /**
+   * Start SSLCommerz payment. Returns { url, orderId, token?, passwordSet? }.
+   * Redirect the user to `url` if present.
+   */
+  const initiateSslPayment = async ({ phone, name, items, shipTo }) => {
+    try {
+      if (!phone) {
+        toast.error("Phone is required");
+        return { success: false };
+      }
+      const addressPayload = shipTo || address;
+      const { data } = await axios.post(
+        backendUrl + "/api/order/ssl/initiate",
+        { phone, name, items, address: addressPayload }
+      );
+      if (data?.success) {
+        if (data.token) setTokenAndPersist(data.token);
+        return {
+          success: true,
+          url: data.url,
+          orderId: data.orderId,
+          passwordSet: data.passwordSet,
+        };
+      }
+      toast.error(data?.message || "Payment init failed");
+      return { success: false };
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err?.response?.data?.message || err.message || "Payment init failed"
+      );
+      return { success: false };
+    }
+  };
+
+  /**
+   * Start bKash Hosted payment. Returns { data, orderId, token?, passwordSet? }.
+   * Redirect the user using `data.bkashURL` if the SDK provides it, or follow your frontend flow.
+   */
+  const createBkashPayment = async ({ phone, name, items, shipTo }) => {
+    try {
+      if (!phone) {
+        toast.error("Phone is required");
+        return { success: false };
+      }
+      const addressPayload = shipTo || address;
+      const { data } = await axios.post(
+        backendUrl + "/api/order/bkash/create",
+        { phone, name, items, address: addressPayload }
+      );
+      if (data?.success) {
+        if (data.token) setTokenAndPersist(data.token);
+        return {
+          success: true,
+          orderId: data.orderId,
+          data: data.data, // payload from bKash create
+          passwordSet: data.passwordSet,
+        };
+      }
+      toast.error(data?.message || "bKash init failed");
+      return { success: false };
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err?.response?.data?.message || err.message || "bKash init failed"
+      );
+      return { success: false };
+    }
+  };
 
   // ----- Context value -----
   const value = {
     // config
     backendUrl,
     currency,
-    delivery_fee,
 
     // navigation
     navigate,
@@ -410,19 +423,16 @@ const ShopContextProvider = (props) => {
     showSearch,
     setShowSearch,
 
-    // products / cart
+    // products / cart (LOCAL ONLY)
     products,
     cartItems,
     setCartItems,
     addToCart,
     updateQuantity,
-    moveCartItemSize, // <— expose atomic size mover
+    moveCartItemSize,
     getCartCount,
     getCartAmount,
-
-    // CART helpers
     clearCart,
-    refreshUserCart,
 
     // profile / address
     user,
@@ -431,13 +441,16 @@ const ShopContextProvider = (props) => {
     setAddress,
 
     fetchUserProfile,
-    updateUserProfile,
     saveUserAddress,
 
     // loading flags
     isProfileLoading,
-    isSavingProfile,
     isSavingAddress,
+
+    // checkout
+    placeOrderCOD,
+    initiateSslPayment,
+    createBkashPayment,
   };
 
   return (

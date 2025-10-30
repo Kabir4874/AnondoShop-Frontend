@@ -34,9 +34,9 @@ const Profile = () => {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!token) return toast.error("You must be logged in.");
-    const { name, email } = user || {};
-    if (!name || !email) return toast.error("Name and email are required.");
-    await updateUserProfile({ name, email });
+    const { name } = user || {};
+    if (!name) return toast.error("Name required.");
+    await updateUserProfile({ name });
   };
 
   // --- Handlers (Address) ---
@@ -99,25 +99,6 @@ const Profile = () => {
                   onChange={handleProfileChange}
                   type="text"
                   placeholder="Your name"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  value={user?.email || ""}
-                  onChange={handleProfileChange}
-                  type="email"
-                  placeholder="you@example.com"
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
                   required
                 />
@@ -220,27 +201,6 @@ const Profile = () => {
                   type="text"
                   placeholder="e.g., Dhaka"
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="postalCode"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Postal Code (4 digits)
-                </label>
-                <input
-                  id="postalCode"
-                  name="postalCode"
-                  value={address?.postalCode || ""}
-                  onChange={handleAddressChange}
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="e.g., 1212"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                  pattern={BD_POSTAL_REGEX}
                   required
                 />
               </div>

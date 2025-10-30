@@ -52,26 +52,21 @@ function calcCartSubtotal(products = [], cartItems = {}) {
 }
 
 const PlaceOrder = () => {
-  // Default to COD or bKash as you prefer:
+  // Default payment method (you can switch to "cod" if you prefer)
   const [method, setMethod] = useState("bkash"); // "cod" | "bkash"
 
   const {
     navigate,
     backendUrl,
-    token,
+    setToken, // store token from checkout response
     cartItems,
     setCartItems,
     products,
-
-    // For autofill + sync with profile
+    user, // { name, phone } from context (may be empty for new users)
     address: savedAddress,
-    setAddress: setSavedAddress,
-
-    // <-- ADD: we need email for tracking
-    user,
   } = useContext(ShopContext);
 
-  // Local form state (autofill from saved address) — postalCode removed
+  // Form state (autofilled from saved address)
   const [formAddress, setFormAddress] = useState({
     recipientName: "",
     phone: "",
@@ -79,7 +74,7 @@ const PlaceOrder = () => {
     district: "",
   });
 
-  // Autofill whenever savedAddress changes (e.g., user saved in Profile)
+  // Autofill whenever savedAddress changes (e.g., user loaded profile)
   useEffect(() => {
     if (savedAddress) {
       setFormAddress({
@@ -96,19 +91,11 @@ const PlaceOrder = () => {
     setFormAddress((d) => ({ ...d, [name]: value }));
   };
 
-  const headers = useMemo(() => ({ token }), [token]);
-
   const isAddressEmpty = (addr) =>
     !addr?.recipientName &&
     !addr?.phone &&
     !addr?.addressLine1 &&
     !addr?.district;
-
-  const hasAddressChanged = (a = {}, b = {}) =>
-    (a.recipientName || "") !== (b.recipientName || "") ||
-    (a.phone || "") !== (b.phone || "") ||
-    (a.addressLine1 || "") !== (b.addressLine1 || "") ||
-    (a.district || "") !== (b.district || "");
 
   const validateAddress = (addr) => {
     const { recipientName, phone, addressLine1, district } = addr || {};
@@ -149,19 +136,14 @@ const PlaceOrder = () => {
     [formAddress]
   );
 
-  // Subtotal computed with discounts (matches CartTotal)
+  // Subtotal (discount-aware; backend will still re-check)
   const subtotal = useMemo(
     () => calcCartSubtotal(products, cartItems),
     [products, cartItems]
   );
 
-  // Save address (if needed) then place order
   const onSubmitHandler = async (e) => {
     e.preventDefault();
-    if (!token) {
-      toast.error("You must be logged in.");
-      return;
-    }
 
     const items = buildOrderItems();
     if (items.length === 0) {
@@ -169,87 +151,63 @@ const PlaceOrder = () => {
       return;
     }
 
+    // Validate address
     const addressToUse = { ...formAddress };
-
-    // 1) Validate address
     if (!validateAddress(addressToUse)) return;
 
-    // 2) Save/update address if none exists or changed
-    const mustSave =
-      isAddressEmpty(savedAddress) ||
-      hasAddressChanged(addressToUse, savedAddress);
+    // Determine display name to save on user profile (fallback to recipient name)
+    const profileName = user?.name || addressToUse.recipientName;
 
-    if (mustSave) {
-      try {
-        const res = await axios.post(
-          `${backendUrl}/api/user/address`,
-          addressToUse,
-          { headers }
-        );
-        if (!res?.data?.success) {
-          toast.error(res?.data?.message || "Failed to save address");
-          return;
-        }
-        setSavedAddress(addressToUse); // keep context in sync
-        toast.success("Address saved");
-      } catch (error) {
-        console.error(error);
-        toast.error(
-          error?.response?.data?.message ||
-            error.message ||
-            "Failed to save address"
-        );
-        return;
-      }
-    }
-
-    // 3) Place / Pay
     try {
-      const amount = subtotal + deliveryFee;
-      const orderData = {
-        address: addressToUse, // minimal BD schema (no postalCode)
-        items,
-        amount, // backend recalculates authoritatively
-      };
-
       if (method === "cod") {
-        const { data } = await axios.post(
-          `${backendUrl}/api/order/place`,
-          orderData,
-          { headers }
-        );
-        if (data.success) {
-          // --- TRACKING: Purchase (COD) ---
+        // COD — creates/ensures account by phone
+        const { data } = await axios.post(`${backendUrl}/api/order/place`, {
+          phone: addressToUse.phone,
+          name: profileName,
+          items,
+          address: addressToUse,
+        });
+
+        if (data?.success) {
+          // Save token returned from checkout (so user can set password later)
+          if (data.token) setToken(data.token);
+
+          // --- Optional: tracking (don’t block UX) ---
           try {
             await trackEvent(backendUrl, {
               name: "Purchase",
-              eventId: data.orderId, // unique id from backend
-              email: user?.email,
-              phone: addressToUse?.phone,
-              value: amount,
+              eventId: data.orderId,
+              phone: addressToUse.phone,
+              value: subtotal + deliveryFee, // UI estimate; backend authoritative
               currency: "BDT",
               content_ids: items.map((i) => String(i._id || i.productId)),
               content_name: data.orderId ? `Order #${data.orderId}` : "Order",
             });
-          } catch (_) {
-            // Never block UX on analytics errors
-          }
+          } catch {}
 
           setCartItems({});
           toast.success("Order placed successfully");
           navigate("/orders");
-        } else {
-          toast.error(data.message || "Failed to place order");
+          return;
         }
+
+        toast.error(data?.message || "Failed to place order");
       } else if (method === "bkash") {
-        // Create bKash payment (backend will compute totals & create pending order)
+        // bKash Hosted — creates/ensures account by phone, returns payload with redirect URL
         const { data } = await axios.post(
           `${backendUrl}/api/order/bkash/create`,
-          { items, address: addressToUse },
-          { headers }
+          {
+            phone: addressToUse.phone,
+            name: profileName,
+            items,
+            address: addressToUse,
+          }
         );
 
         if (data?.success) {
+          if (data.token) setToken(data.token);
+
+          // Try to find a usable redirect URL from various SDK shapes
           const redirectUrl =
             data?.url ||
             data?.redirectURL ||
@@ -261,28 +219,38 @@ const PlaceOrder = () => {
 
           if (redirectUrl) {
             window.location.replace(redirectUrl);
+            return;
           } else {
             toast.error("bKash URL missing in response");
+            return;
           }
-        } else {
-          toast.error(data?.message || "Failed to initialize bKash payment");
         }
+
+        toast.error(data?.message || "Failed to initialize bKash payment");
       }
+
       // else if (method === "sslcommerz") {
       //   const { data } = await axios.post(
       //     `${backendUrl}/api/order/ssl/initiate`,
-      //     orderData,
-      //     { headers }
+      //     {
+      //       phone: addressToUse.phone,
+      //       name: profileName,
+      //       items,
+      //       address: addressToUse,
+      //     }
       //   );
-      //   if (data.success && data.url) {
+      //   if (data?.success && data?.url) {
+      //     if (data.token) setToken(data.token);
       //     window.location.replace(data.url);
       //   } else {
-      //     toast.error(data.message || "Failed to initialize payment");
+      //     toast.error(data?.message || "Failed to initialize payment");
       //   }
       // }
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Something went wrong");
+      toast.error(
+        err?.response?.data?.message || err.message || "Something went wrong"
+      );
     }
   };
 
@@ -344,7 +312,8 @@ const PlaceOrder = () => {
       {/* Right Side — Summary + Payment */}
       <div className="mt-8">
         <div className="mt-8 min-w-80">
-          {/* Pass dynamic delivery fee + label so summary matches the amount sent to backend */}
+          {/* Pass dynamic delivery fee + label so summary matches the UI estimate;
+              backend will still recompute the final amount. */}
           <CartTotal
             deliveryFee={deliveryFee}
             destinationLabel={deliveryLabel}
@@ -374,7 +343,7 @@ const PlaceOrder = () => {
               />
             </div>
 
-            {/* SSLCommerz (commented as requested) */}
+            {/* SSLCommerz (optional) */}
             {/*
             <div
               onClick={() => setMethod("sslcommerz")}

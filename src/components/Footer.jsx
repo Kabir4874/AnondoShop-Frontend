@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const Footer = () => {
   return (
     <div>
-      <div className="flex flex-col sm:grid grid-cols-[3fr_1fr_1fr] gap-14 my-10 mt-40 text-sm">
+      <div className="flex flex-col sm:grid grid-cols-[3fr_1fr_1fr] gap-14 my-10 mt-40 text-sm mb-8">
         {/* Brand + About + Socials */}
         <div>
           <Link to="/" className="mb-5 inline-block">
@@ -118,7 +118,7 @@ const Footer = () => {
       </div>
 
       {/* Footer bottom */}
-      <div>
+      <div className="mb-16">
         <hr />
         <p className="py-5 text-sm text-center">
           Copyright 2025 AnondoShop. All rights reserved. Developed By{" "}
