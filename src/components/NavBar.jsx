@@ -156,12 +156,12 @@ const NavBar = () => {
               )}
             </div>
 
-            <Link to="/cart" className="relative">
+            {/* <Link to="/cart" className="relative">
               <img src={assets.cart_icon} className="min-w-5 w-5" alt="Cart" />
               <p className="absolute right-[-5px] bottom-[-5px] aspect-square w-4 rounded-full bg-black text-center text-[8px] leading-4 text-white">
                 {getCartCount()}
               </p>
-            </Link>
+            </Link> */}
           </div>
 
           {/* Mobile actions in top-right (unchanged): search / cart / hamburger */}

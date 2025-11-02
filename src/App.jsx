@@ -9,7 +9,6 @@ import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
 import { initMarketingPixels } from "./lib/tracking";
 import About from "./pages/About";
-import Cart from "./pages/Cart";
 import Collection from "./pages/Collection";
 import Contact from "./pages/Contact";
 import Home from "./pages/Home";
@@ -39,7 +38,6 @@ const App = () => {
         <Route path="/contact" element={<Contact />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/product/:productId" element={<Product />} />
-        <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/place-order" element={<PlaceOrder />} />
         <Route path="/payment-result" element={<PaymentResult />} />

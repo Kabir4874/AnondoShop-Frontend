@@ -20,9 +20,8 @@ const ShopContextProvider = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const currency = "&#2547;";
 
-  // ----- Products / Cart (local only) -----
+  // ----- Products -----
   const [products, setProducts] = useState([]);
-  const [cartItems, setCartItems] = useState({}); // { [productId]: { [size]: qty } }
 
   // ----- Profile / Address (phone-only) -----
   const [user, setUser] = useState({ name: "", phone: "" });
@@ -34,41 +33,11 @@ const ShopContextProvider = (props) => {
     postalCode: "",
   });
 
-  // Loading flags for profile-related calls
+  // Loading flags
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
-  // Common headers (memoized)
   const authHeaders = useMemo(() => (token ? { token } : {}), [token]);
-
-  // ===== Local helpers =====
-  const isXXL = (size) => {
-    if (!size) return false;
-    const s = String(size).toUpperCase();
-    return s.startsWith("XXL");
-  };
-
-  const effectivePrice = (item) => {
-    const base = Number(item?.price) || 0;
-    const disc = Number(item?.discount) || 0;
-    if (disc > 0) return Math.max(0, base - (base * disc) / 100);
-    return base;
-  };
-
-  // ----- LocalStorage: load cart on mount -----
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("cartItems");
-      if (stored) setCartItems(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  // ----- LocalStorage: persist cart on change -----
-  useEffect(() => {
-    try {
-      localStorage.setItem("cartItems", JSON.stringify(cartItems));
-    } catch {}
-  }, [cartItems]);
 
   // ----- Products -----
   const getProductsData = async () => {
@@ -90,109 +59,17 @@ const ShopContextProvider = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ----- Cart (LOCAL ONLY) -----
-  const addToCart = (itemId, size) => {
-    if (!size) {
-      toast.error("Please Select a Size");
-      return;
-    }
-    setCartItems((prev) => {
-      const next = structuredClone(prev || {});
-      if (!next[itemId]) next[itemId] = {};
-      next[itemId][size] = (next[itemId][size] || 0) + 1;
-      return next;
-    });
-    toast.success("Item Added To The Cart");
-  };
-
-  const updateQuantity = (itemId, size, quantity) => {
-    setCartItems((prev) => {
-      const next = structuredClone(prev || {});
-      if (!next[itemId]) next[itemId] = {};
-      next[itemId][size] = Math.max(0, Number(quantity) || 0);
-
-      // Clean up empty sizes / products
-      if (next[itemId][size] === 0) {
-        delete next[itemId][size];
-        if (Object.keys(next[itemId]).length === 0) delete next[itemId];
-        toast.success("Item Removed From The Cart");
-      }
-      return next;
-    });
-  };
-
-  /** Move quantity from one size to another atomically (local) */
-  const moveCartItemSize = (itemId, fromSize, toSize) => {
-    if (!itemId || !fromSize || !toSize || fromSize === toSize) return;
-
-    setCartItems((prev) => {
-      const next = structuredClone(prev || {});
-      const product = next[itemId] || {};
-      const fromQty = Number(product[fromSize] || 0);
-      const toQty = Number(product[toSize] || 0);
-
-      if (fromQty <= 0) return next;
-
-      if (!next[itemId]) next[itemId] = {};
-      next[itemId][toSize] = toQty + fromQty;
-      delete next[itemId][fromSize];
-
-      if (Object.keys(next[itemId]).length === 0) delete next[itemId];
-      return next;
-    });
-  };
-
-  const getCartCount = () => {
-    let total = 0;
-    for (const pid in cartItems) {
-      const sizes = cartItems[pid];
-      for (const s in sizes) {
-        const q = Number(sizes[s]) || 0;
-        if (q > 0) total += q;
-      }
-    }
-    return total;
-  };
-
-  /** Local estimate: discount-applied price + XXL surcharge (+50/item) */
-  const getCartAmount = () => {
-    let totalAmount = 0;
-    for (const pid in cartItems) {
-      const itemInfo = products.find((p) => p._id === pid);
-      for (const size in cartItems[pid]) {
-        const qty = Number(cartItems[pid][size]) || 0;
-        if (qty > 0) {
-          const unit = effectivePrice(itemInfo);
-          const xxlFee = isXXL(size) ? 50 : 0;
-          totalAmount += (unit + xxlFee) * qty;
-        }
-      }
-    }
-    return totalAmount;
-  };
-
-  // Helper: fully clear local cart
-  const clearCart = () => {
-    try {
-      setCartItems({});
-      localStorage.removeItem("cartItems");
-    } catch {}
-  };
-
   // ----- Token bootstrap -----
   useEffect(() => {
     const stored = localStorage.getItem("token");
-    if (!token && stored) {
-      setToken(stored);
-    }
+    if (!token && stored) setToken(stored);
   }, [token]);
 
-  // Helper to persist token
   const setTokenAndPersist = (tk) => {
     setToken(tk);
     if (tk) {
       localStorage.setItem("token", tk);
-      fetchUserProfile(tk); // prefetch profile
+      fetchUserProfile(tk);
     } else {
       localStorage.removeItem("token");
       setUser({ name: "", phone: "" });
@@ -203,12 +80,11 @@ const ShopContextProvider = (props) => {
         district: "",
         postalCode: "",
       });
-      setCartItems({});
-      localStorage.removeItem("cartItems");
+      localStorage.removeItem("checkoutItems");
     }
   };
 
-  // ----- USER PROFILE API CALLS -----
+  // ----- USER PROFILE -----
   const fetchUserProfile = async (tk = token) => {
     if (!tk) return;
     setIsProfileLoading(true);
@@ -291,18 +167,19 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  // Hydrate profile when token changes
   useEffect(() => {
     if (token) fetchUserProfile(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // ====== CHECKOUT HELPERS (create account by phone implicitly) ======
-  /**
-   * Place COD order.
-   * Backend will ensure/create user by phone and return { token, passwordSet, orderId }.
-   */
-  const placeOrderCOD = async ({ phone, name, items, shipTo }) => {
+  // ====== CHECKOUT HELPERS (account by phone) ======
+  const placeOrderCOD = async ({
+    phone,
+    name,
+    items,
+    shipTo,
+    deliveryOverride,
+  }) => {
     try {
       if (!phone) {
         toast.error("Phone is required");
@@ -314,6 +191,7 @@ const ShopContextProvider = (props) => {
         name,
         items,
         address: addressPayload,
+        deliveryOverride, // optional for backend; safe to send
       });
       if (data?.success) {
         if (data.token) setTokenAndPersist(data.token);
@@ -334,11 +212,13 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  /**
-   * Start SSLCommerz payment. Returns { url, orderId, token?, passwordSet? }.
-   * Redirect the user to `url` if present.
-   */
-  const initiateSslPayment = async ({ phone, name, items, shipTo }) => {
+  const initiateSslPayment = async ({
+    phone,
+    name,
+    items,
+    shipTo,
+    deliveryOverride,
+  }) => {
     try {
       if (!phone) {
         toast.error("Phone is required");
@@ -347,7 +227,13 @@ const ShopContextProvider = (props) => {
       const addressPayload = shipTo || address;
       const { data } = await axios.post(
         backendUrl + "/api/order/ssl/initiate",
-        { phone, name, items, address: addressPayload }
+        {
+          phone,
+          name,
+          items,
+          address: addressPayload,
+          deliveryOverride,
+        }
       );
       if (data?.success) {
         if (data.token) setTokenAndPersist(data.token);
@@ -369,11 +255,13 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  /**
-   * Start bKash Hosted payment. Returns { data, orderId, token?, passwordSet? }.
-   * Redirect the user using `data.bkashURL` if the SDK provides it, or follow your frontend flow.
-   */
-  const createBkashPayment = async ({ phone, name, items, shipTo }) => {
+  const createBkashPayment = async ({
+    phone,
+    name,
+    items,
+    shipTo,
+    deliveryOverride,
+  }) => {
     try {
       if (!phone) {
         toast.error("Phone is required");
@@ -382,14 +270,20 @@ const ShopContextProvider = (props) => {
       const addressPayload = shipTo || address;
       const { data } = await axios.post(
         backendUrl + "/api/order/bkash/create",
-        { phone, name, items, address: addressPayload }
+        {
+          phone,
+          name,
+          items,
+          address: addressPayload,
+          deliveryOverride,
+        }
       );
       if (data?.success) {
         if (data.token) setTokenAndPersist(data.token);
         return {
           success: true,
           orderId: data.orderId,
-          data: data.data, // payload from bKash create
+          data: data.data,
           passwordSet: data.passwordSet,
         };
       }
@@ -404,7 +298,23 @@ const ShopContextProvider = (props) => {
     }
   };
 
-  // ----- Context value -----
+  // ===== Small utils for pricing on the client (used by PlaceOrder) =====
+  const isXXL = (size) =>
+    String(size || "")
+      .toUpperCase()
+      .startsWith("XXL");
+  const effectivePrice = (product) => {
+    const base = Number(product?.price) || 0;
+    const disc = Number(product?.discount) || 0;
+    return disc > 0 ? Math.max(0, base - (base * disc) / 100) : base;
+  };
+  const getProductById = (id) =>
+    products.find((p) => String(p._id) === String(id));
+
+  // ===== No-cart placeholders (so other components don't break) =====
+  const getCartCount = () => 0;
+  const setCartItems = () => {};
+
   const value = {
     // config
     backendUrl,
@@ -423,23 +333,21 @@ const ShopContextProvider = (props) => {
     showSearch,
     setShowSearch,
 
-    // products / cart (LOCAL ONLY)
+    // products / utils
     products,
-    cartItems,
-    setCartItems,
-    addToCart,
-    updateQuantity,
-    moveCartItemSize,
+    getProductById,
+    effectivePrice,
+    isXXL,
+
+    // stubs for compatibility
     getCartCount,
-    getCartAmount,
-    clearCart,
+    setCartItems,
 
     // profile / address
     user,
     setUser,
     address,
     setAddress,
-
     fetchUserProfile,
     saveUserAddress,
 

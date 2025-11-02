@@ -15,7 +15,7 @@ const STATUS_OPTIONS = [
 ];
 
 const Orders = () => {
-  const { backendUrl, token, currency } = useContext(ShopContext);
+  const { backendUrl, token } = useContext(ShopContext);
   const [orderData, setOrderData] = useState([]);
 
   // Filters
@@ -339,9 +339,7 @@ const Orders = () => {
 
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-base text-gray-700">
                     {/* Unit price */}
-                    <p className="text-lg">
-                      {currency} {formatBDT(unitPrice)}
-                    </p>
+                    <p className="text-lg">৳ {formatBDT(unitPrice)}</p>
 
                     {/* Quantity */}
                     <p>
@@ -357,7 +355,7 @@ const Orders = () => {
 
                     {/* Line total */}
                     <p className="text-gray-600 text-sm">
-                      Line Total: {currency} {formatBDT(lineTotal)}
+                      Line Total: ৳ {formatBDT(lineTotal)}
                     </p>
                   </div>
 
