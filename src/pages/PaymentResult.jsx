@@ -6,7 +6,7 @@ import { ShopContext } from "../context/ShopContext";
 import { trackEvent } from "../lib/tracking";
 
 const PaymentResult = () => {
-  const { clearCart, refreshUserCart, navigate, token, user, address } =
+  const { clearCart, refreshUserCart, navigate, token, address } =
     useContext(ShopContext);
   const { search } = useLocation();
 
@@ -24,9 +24,9 @@ const PaymentResult = () => {
 
     (async () => {
       try {
-        // keep UI/cart in sync
-        await clearCart();
-        await refreshUserCart();
+        // keep UI/cart in sync (no-ops if you don't use cart)
+        await clearCart?.();
+        await refreshUserCart?.();
 
         // Try to fetch the latest orders and locate this order to get items/amount
         let orderData = null;
@@ -40,12 +40,9 @@ const PaymentResult = () => {
               data.orders.find((o) => String(o._id) === orderId) || null;
           }
         }
-
-        // Build tracking payload
         const payload = {
           name: "Purchase",
           eventId: orderId || undefined,
-          email: user?.email || undefined,
           phone: address?.phone || undefined,
           value: orderData?.amount ?? undefined,
           currency: "BDT",
@@ -63,15 +60,7 @@ const PaymentResult = () => {
         // Silent failure: we don't block the page for tracking issues
       }
     })();
-  }, [
-    status,
-    orderId,
-    token,
-    user?.email,
-    address?.phone,
-    clearCart,
-    refreshUserCart,
-  ]);
+  }, [status, orderId, token, address?.phone, clearCart, refreshUserCart]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
@@ -98,8 +87,8 @@ const PaymentResult = () => {
           <h1 className="text-2xl font-semibold">Payment Failed</h1>
           <p className="mt-2 text-gray-600">Please try again or choose COD.</p>
           <div className="mt-6 flex gap-3 justify-center">
-            <Link to="/cart" className="px-6 py-2 bg-black text-white">
-              Return to Cart
+            <Link to="/" className="px-6 py-2 bg-black text-white">
+              Go Home
             </Link>
           </div>
         </div>
@@ -110,8 +99,8 @@ const PaymentResult = () => {
           <h1 className="text-2xl font-semibold">Payment Cancelled</h1>
           <p className="mt-2 text-gray-600">You cancelled the payment.</p>
           <div className="mt-6 flex gap-3 justify-center">
-            <Link to="/cart" className="px-6 py-2 bg-black text-white">
-              Return to Cart
+            <Link to="/" className="px-6 py-2 bg-black text-white">
+              Go Home
             </Link>
           </div>
         </div>
