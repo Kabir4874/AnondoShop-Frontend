@@ -15,7 +15,7 @@ const unitPrice = (product, size, effectivePriceFn, isXXL) => {
 };
 
 const PlaceOrder = () => {
-  const [method, setMethod] = useState("bkash"); // "cod" | "bkash"
+  const [method, setMethod] = useState("cod"); // "cod" | "bkash"
 
   const {
     navigate,
@@ -456,7 +456,7 @@ const PlaceOrder = () => {
 
           <div className="flex flex-col gap-3 lg:flex-row">
             {/* bKash */}
-            <div
+            {/* <div
               onClick={() => setMethod("bkash")}
               className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
             >
@@ -472,7 +472,7 @@ const PlaceOrder = () => {
                 }
                 alt="bKash"
               />
-            </div>
+            </div> */}
 
             {/* COD */}
             <div
