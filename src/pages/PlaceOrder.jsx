@@ -71,10 +71,18 @@ const PlaceOrder = () => {
   };
 
   // ---- delivery area selector (replaces address-based fee) ----
-  const [deliveryArea, setDeliveryArea] = useState("inside"); // "inside" | "outside"
-  const deliveryFee = deliveryArea === "inside" ? 80 : 150;
+  const [deliveryArea, setDeliveryArea] = useState("inside"); // "inside" | "outside" | "gazipur" | "ashulia"
+
+  const DELIVERY_MAP = {
+    inside: { fee: 80, label: "Inside Dhaka City" },
+    outside: { fee: 150, label: "Outside Dhaka City" },
+    gazipur: { fee: 120, label: "Gazipur" },
+    ashulia: { fee: 120, label: "Ashulia" },
+  };
+
+  const deliveryFee = DELIVERY_MAP[deliveryArea]?.fee ?? 80;
   const deliveryLabel =
-    deliveryArea === "inside" ? "Inside Dhaka City" : "Outside Dhaka City";
+    DELIVERY_MAP[deliveryArea]?.label ?? "Inside Dhaka City";
 
   // ---- address form (minimal) ----
   const [formAddress, setFormAddress] = useState({
@@ -387,6 +395,38 @@ const PlaceOrder = () => {
               </span>
               <span>৳ 150.00</span>
             </label>
+
+            {/* New: Gazipur */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="deliveryArea"
+                  value="gazipur"
+                  checked={deliveryArea === "gazipur"}
+                  onChange={() => setDeliveryArea("gazipur")}
+                  className="h-4 w-4"
+                />
+                Gazipur
+              </span>
+              <span>৳ 120.00</span>
+            </label>
+
+            {/* New: Ashulia */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="deliveryArea"
+                  value="ashulia"
+                  checked={deliveryArea === "ashulia"}
+                  onChange={() => setDeliveryArea("ashulia")}
+                  className="h-4 w-4"
+                />
+                Ashulia
+              </span>
+              <span>৳ 120.00</span>
+            </label>
           </div>
         </div>
 
@@ -397,6 +437,10 @@ const PlaceOrder = () => {
           </div>
 
           <div className="flex flex-col gap-3">
+            {/* Name */}
+            <label className="text-sm font-semibold text-gray-800">
+              আপনার নাম লিখুন <span className="text-red-500">*</span>
+            </label>
             <input
               required
               name="recipientName"
@@ -404,9 +448,14 @@ const PlaceOrder = () => {
               onChange={onChangeAddress}
               className="w-full px-4 py-2 border border-gray-300 rounded"
               type="text"
-              placeholder="Recipient Name"
+              placeholder="সম্পূর্ণ নাম লিখুন"
             />
 
+            {/* Phone */}
+            <label className="text-sm font-semibold text-gray-800">
+              আপনার মোবাইল নাম্বারটি লিখুন{" "}
+              <span className="text-red-500">*</span>
+            </label>
             <input
               required
               name="phone"
@@ -415,9 +464,13 @@ const PlaceOrder = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded"
               type="tel"
               inputMode="tel"
-              placeholder="01XXXXXXXXX or +8801XXXXXXXXX"
+              placeholder="এগারো ডিজিটের সঠিক ফোন নাম্বারটি লিখুন"
             />
 
+            {/* Address */}
+            <label className="text-sm font-semibold text-gray-800">
+              সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span>
+            </label>
             <input
               required
               name="addressLine1"
@@ -425,9 +478,13 @@ const PlaceOrder = () => {
               onChange={onChangeAddress}
               className="w-full px-4 py-2 border border-gray-300 rounded"
               type="text"
-              placeholder="House/Road/Village"
+              placeholder="হাউজ নম্বর, রোড, উপজেলা, জেলা"
             />
 
+            {/* District */}
+            <label className="text-sm font-semibold text-gray-800">
+              জেলা <span className="text-red-500">*</span>
+            </label>
             <input
               required
               name="district"
@@ -435,7 +492,7 @@ const PlaceOrder = () => {
               onChange={onChangeAddress}
               className="w-full px-4 py-2 border border-gray-300 rounded"
               type="text"
-              placeholder="District (e.g., Dhaka)"
+              placeholder="জেলা লিখুন (যেমন: ঢাকা)"
             />
           </div>
         </div>

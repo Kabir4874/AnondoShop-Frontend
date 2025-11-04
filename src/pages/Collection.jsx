@@ -40,7 +40,9 @@ const Collection = () => {
   const [sizes, setSizes] = useState([]);
   const [bestSellerOnly, setBestSellerOnly] = useState(false);
   const [discountOnly, setDiscountOnly] = useState(false);
-  const [sortType, setSortType] = useState("relevant");
+
+  // Default sort -> newest first
+  const [sortType, setSortType] = useState("newest");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
 
@@ -121,13 +123,30 @@ const Collection = () => {
     setDiscountOnly(false);
     setPriceMin("");
     setPriceMax("");
-    setSortType("relevant");
+    setSortType("newest");
+  };
+
+  // Helper: robust creation timestamp for sorting
+  const getCreatedTs = (item) => {
+    const ca = item?.createdAt;
+    if (ca) {
+      const ts = Date.parse(ca);
+      if (!Number.isNaN(ts)) return ts;
+    }
+    const id = item?._id;
+    if (id && typeof id === "string" && id.length >= 8) {
+      const hex = id.substring(0, 8);
+      const sec = parseInt(hex, 16);
+      if (!Number.isNaN(sec)) return sec * 1000;
+    }
+    return 0;
   };
 
   const filteredProducts = useMemo(() => {
     // annotate each with original index (for stable “relevant” order & tiebreakers)
     let list = (Array.isArray(products) ? products : []).map((p, idx) => ({
       __idx: idx,
+      __ts: getCreatedTs(p),
       ...p,
     }));
 
@@ -180,7 +199,7 @@ const Collection = () => {
       });
     }
 
-    // Sort (by *effective* price when applicable)
+    // Sort
     if (sortType === "low-high" || sortType === "high-low") {
       list.sort((a, b) => {
         const pa = effectivePrice(a);
@@ -199,14 +218,26 @@ const Collection = () => {
         // final tiebreaker: original index (stable)
         return a.__idx - b.__idx;
       });
+    } else if (sortType === "newest" || sortType === "oldest") {
+      // sort by creation time (desc for newest, asc for oldest)
+      list.sort((a, b) => {
+        const diff = sortType === "newest" ? b.__ts - a.__ts : a.__ts - b.__ts;
+        if (diff !== 0) return diff;
+        // tiebreakers
+        const na = String(a?.name || "");
+        const nb = String(b?.name || "");
+        const nameDiff = na.localeCompare(nb);
+        if (nameDiff !== 0) return nameDiff;
+        return a.__idx - b.__idx;
+      });
     }
     // "relevant": keep original order (by __idx)
     else if (sortType === "relevant") {
       list.sort((a, b) => a.__idx - b.__idx);
     }
 
-    // strip helper before returning
-    return list.map(({ __idx, ...rest }) => rest);
+    // strip helpers before returning
+    return list.map(({ ...rest }) => rest);
   }, [
     products,
     showSearch,
@@ -430,6 +461,8 @@ const Collection = () => {
                 className="px-2 py-2 text-sm border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 w-full sm:w-auto"
                 aria-label="Sort products"
               >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
                 <option value="relevant">Relevant</option>
                 <option value="low-high">Price: Low to High</option>
                 <option value="high-low">Price: High to Low</option>

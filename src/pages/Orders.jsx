@@ -6,6 +6,7 @@ import { ShopContext } from "../context/ShopContext";
 const STATUS_OPTIONS = [
   "All",
   "Order Placed",
+  "Confirmed",
   "Pending",
   "Packing",
   "Shipped",
@@ -238,9 +239,10 @@ const Orders = () => {
     return () => document.removeEventListener("keydown", onEsc);
   }, [trackOpen]);
 
-  // Timeline rendering helpers (includes your new "Pending" & "Packing")
+  // Timeline rendering helpers (now includes "confirmed")
   const TL_STEPS = [
     "order placed",
+    "confirmed",
     "paid",
     "pending",
     "packing",
