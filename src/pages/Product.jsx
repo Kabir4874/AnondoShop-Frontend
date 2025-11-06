@@ -8,7 +8,7 @@ import { trackEvent } from "../lib/tracking";
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, addToCart, navigate } = useContext(ShopContext);
+  const { products, navigate } = useContext(ShopContext);
 
   const [productData, setProductData] = useState(null);
   const [activeImage, setActiveImage] = useState("");
@@ -56,6 +56,18 @@ const Product = () => {
     fetchProductData();
   }, [productId, products]);
 
+  // Fire ViewContent when product is available
+  useEffect(() => {
+    if (!productData) return;
+    try {
+      trackEvent(backendUrl, {
+        name: "ViewContent",
+        content_ids: [productData._id],
+        content_name: productData.name,
+      });
+    } catch {}
+  }, [productData]);
+
   if (!productData) {
     return <div className="opacity-0" />;
   }
@@ -71,17 +83,29 @@ const Product = () => {
     return true;
   };
 
+  const setCheckoutItemsAndGo = () => {
+    // Overwrite checkoutItems with the selected product (qty=1)
+    const payload = [
+      { productId: productData._id, size: size || null, quantity: 1 },
+    ];
+    try {
+      localStorage.setItem("checkoutItems", JSON.stringify(payload));
+    } catch {}
+    navigate("/place-order");
+  };
+
   const handleConfirmOrder = () => {
     if (!ensureSizeOrToast()) return;
-    addToCart(productData._id, size);
-    trackEvent(backendUrl, {
-      name: "InitiateCheckout",
-      content_ids: [productData._id],
-      content_name: productData.name,
-      value: finalPrice,
-      currency: "BDT",
-    });
-    navigate("/place-order");
+    try {
+      trackEvent(backendUrl, {
+        name: "InitiateCheckout",
+        content_ids: [productData._id],
+        content_name: productData.name,
+        value: finalPrice,
+        currency: "BDT",
+      });
+    } catch {}
+    setCheckoutItemsAndGo();
   };
 
   const handleWhatsAppOrder = () => {
@@ -98,24 +122,6 @@ const Product = () => {
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, "_blank", "noopener,noreferrer");
   };
-
-  const handleAddToCart = () => {
-    if (!ensureSizeOrToast()) return;
-    addToCart(productData._id, size);
-    trackEvent(backendUrl, {
-      name: "AddToCart",
-      content_ids: [productData._id],
-      content_name: productData.name,
-      value: finalPrice,
-      currency: "BDT",
-    });
-  };
-
-  trackEvent(backendUrl, {
-    name: "ViewContent",
-    content_ids: [productData._id],
-    content_name: productData.name,
-  });
 
   return (
     <div className="pt-10 transition-opacity duration-500 ease-in border-t-2 opacity-100">
@@ -209,14 +215,6 @@ const Product = () => {
               className="w-full py-3 text-white font-semibold rounded bg-green-700 hover:bg-green-800 active:scale-[.99] transition"
             >
               WHATSAPP এ অর্ডার করুন
-            </button>
-
-            {/* Add to Cart */}
-            <button
-              onClick={handleAddToCart}
-              className="w-full px-8 py-3 text-sm text-white bg-black active:bg-gray-700 rounded transition"
-            >
-              ADD TO CART
             </button>
           </div>
 
