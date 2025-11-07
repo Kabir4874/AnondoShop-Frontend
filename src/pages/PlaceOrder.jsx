@@ -360,6 +360,73 @@ const PlaceOrder = () => {
           )}
         </div>
 
+        {/* 3) Address */}
+        <div>
+          <div className="mb-3 text-xl sm:text-2xl">
+            <Title text1={"DELIVERY"} text2={"INFORMATION"} />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {/* Name */}
+            <label className="text-sm font-semibold text-gray-800">
+              আপনার নাম লিখুন <span className="text-red-500">*</span>
+            </label>
+            <input
+              required
+              name="recipientName"
+              value={formAddress.recipientName}
+              onChange={onChangeAddress}
+              className="w-full px-4 py-2 border border-gray-300 rounded"
+              type="text"
+              placeholder="সম্পূর্ণ নাম লিখুন"
+            />
+
+            {/* Phone */}
+            <label className="text-sm font-semibold text-gray-800">
+              আপনার মোবাইল নাম্বারটি লিখুন{" "}
+              <span className="text-red-500">*</span>
+            </label>
+            <input
+              required
+              name="phone"
+              value={formAddress.phone}
+              onChange={onChangeAddress}
+              className="w-full px-4 py-2 border border-gray-300 rounded"
+              type="tel"
+              inputMode="tel"
+              placeholder="এগারো ডিজিটের সঠিক ফোন নাম্বারটি লিখুন"
+            />
+
+            {/* Address */}
+            <label className="text-sm font-semibold text-gray-800">
+              সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span>
+            </label>
+            <input
+              required
+              name="addressLine1"
+              value={formAddress.addressLine1}
+              onChange={onChangeAddress}
+              className="w-full px-4 py-2 border border-gray-300 rounded"
+              type="text"
+              placeholder="হাউজ নম্বর, রোড, উপজেলা, জেলা"
+            />
+
+            {/* District */}
+            <label className="text-sm font-semibold text-gray-800">
+              জেলা <span className="text-red-500">*</span>
+            </label>
+            <input
+              required
+              name="district"
+              value={formAddress.district}
+              onChange={onChangeAddress}
+              className="w-full px-4 py-2 border border-gray-300 rounded"
+              type="text"
+              placeholder="জেলা লিখুন (যেমন: ঢাকা)"
+            />
+          </div>
+        </div>
+
         {/* 2) Delivery area selection */}
         <div>
           <div className="mb-3 text-xl sm:text-2xl">
@@ -427,73 +494,6 @@ const PlaceOrder = () => {
               </span>
               <span>৳ 120.00</span>
             </label>
-          </div>
-        </div>
-
-        {/* 3) Address */}
-        <div>
-          <div className="mb-3 text-xl sm:text-2xl">
-            <Title text1={"DELIVERY"} text2={"INFORMATION"} />
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {/* Name */}
-            <label className="text-sm font-semibold text-gray-800">
-              আপনার নাম লিখুন <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="recipientName"
-              value={formAddress.recipientName}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="সম্পূর্ণ নাম লিখুন"
-            />
-
-            {/* Phone */}
-            <label className="text-sm font-semibold text-gray-800">
-              আপনার মোবাইল নাম্বারটি লিখুন{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="phone"
-              value={formAddress.phone}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="tel"
-              inputMode="tel"
-              placeholder="এগারো ডিজিটের সঠিক ফোন নাম্বারটি লিখুন"
-            />
-
-            {/* Address */}
-            <label className="text-sm font-semibold text-gray-800">
-              সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="addressLine1"
-              value={formAddress.addressLine1}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="হাউজ নম্বর, রোড, উপজেলা, জেলা"
-            />
-
-            {/* District */}
-            <label className="text-sm font-semibold text-gray-800">
-              জেলা <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="district"
-              value={formAddress.district}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="জেলা লিখুন (যেমন: ঢাকা)"
-            />
           </div>
         </div>
       </div>
