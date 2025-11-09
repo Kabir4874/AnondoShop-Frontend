@@ -218,7 +218,7 @@ const PlaceOrder = () => {
 
           localStorage.removeItem("checkoutItems");
           toast.success("Order placed successfully");
-          navigate("/orders");
+          navigate(`/payment-result?status=success&payment=cod`);
           return;
         }
 
