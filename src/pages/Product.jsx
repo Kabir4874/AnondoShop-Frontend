@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { backendUrl } from "../App";
+import { SITE_URL, backendUrl } from "../App";
 import RelatedProducts from "../components/RelatedProducts";
 import { ShopContext } from "../context/ShopContext";
 import { trackEvent } from "../lib/tracking";
@@ -68,8 +69,51 @@ const Product = () => {
     } catch {}
   }, [productData]);
 
+  // --- SEO (Helmet) setup ---
+  const canonicalUrl = `${SITE_URL}/product/${productId || ""}`;
+  const primaryImage =
+    (imageUrls && imageUrls.length > 0 && imageUrls[0]) ||
+    "https://cdn-icons-png.flaticon.com/512/625/625149.png";
+
+  const metaTitle = productData
+    ? `${productData.name} | AnondoShop`
+    : "Product | AnondoShop";
+
+  const rawDescription =
+    productData?.description ||
+    "Discover premium fashion and lifestyle products on AnondoShop with Cash on Delivery all over Bangladesh.";
+
+  const metaDescription =
+    rawDescription.length > 160
+      ? `${rawDescription.slice(0, 157)}...`
+      : rawDescription;
+
   if (!productData) {
-    return <div className="opacity-0" />;
+    return (
+      <>
+        <Helmet>
+          <title>{metaTitle}</title>
+          <meta name="description" content={metaDescription} />
+          <link rel="canonical" href={canonicalUrl} />
+
+          {/* Open Graph */}
+          <meta property="og:site_name" content="AnondoShop" />
+          <meta property="og:type" content="product" />
+          <meta property="og:title" content={metaTitle} />
+          <meta property="og:description" content={metaDescription} />
+          <meta property="og:image" content={primaryImage} />
+          <meta property="og:url" content={canonicalUrl} />
+
+          {/* Twitter */}
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={metaTitle} />
+          <meta name="twitter:description" content={metaDescription} />
+          <meta name="twitter:image" content={primaryImage} />
+        </Helmet>
+
+        <div className="opacity-0" />
+      </>
+    );
   }
 
   const requiresSize =
@@ -124,151 +168,188 @@ const Product = () => {
   };
 
   return (
-    <div className="pt-10 transition-opacity duration-500 ease-in border-t-2 opacity-100">
-      {/* Product Data */}
-      <div className="flex flex-col gap-12 sm:gap-12 sm:flex-row">
-        {/* Product Images */}
-        <div className="flex flex-col-reverse flex-1 gap-3 sm:flex-row">
-          <div className="flex justify-between overflow-x-auto sm:flex-col sm:overflow-y-scroll sm:justify-normal sm:w-[18.7%] w-full">
-            {imageUrls.map((url, index) => (
-              <img
-                src={url}
-                key={index}
-                onClick={() => setActiveImage(url)}
-                className={`w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer ${
-                  activeImage === url
-                    ? "border-2 border-gray-600 py-2 px-2"
-                    : ""
-                }`}
-                alt={`Photo ${index + 1}`}
-              />
-            ))}
-          </div>
-          <div className="w-full sm:w-[80%]">
-            {activeImage ? (
-              <img src={activeImage} className="w-full h-auto" alt="Selected" />
-            ) : (
-              <div className="w-full aspect-square bg-gray-100" />
-            )}
-          </div>
-        </div>
+    <>
+      <Helmet>
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={canonicalUrl} />
 
-        {/* Product Info */}
-        <div className="flex-1">
-          <h1 className="mt-2 text-2xl font-medium">{productData.name}</h1>
+        {/* Open Graph */}
+        <meta property="og:site_name" content="AnondoShop" />
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={primaryImage} />
+        <meta property="og:url" content={canonicalUrl} />
+        {productData?.price && (
+          <meta
+            property="product:price:amount"
+            content={String(finalPrice || productData.price)}
+          />
+        )}
+        <meta property="product:price:currency" content="BDT" />
 
-          {/* Price (with discount display if applicable) */}
-          <div className="mt-5 text-3xl font-medium">
-            {Number(productData.discount) > 0 ? (
-              <div className="flex items-baseline gap-3">
-                <span className="line-through text-gray-400 text-2xl">
-                  &#2547; {formatBDT(productData.price)}
-                </span>
-                <span>&#2547; {formatBDT(finalPrice)}</span>
-                <span className="ml-2 text-sm text-green-600 font-semibold">
-                  {Number(productData.discount)}% OFF
-                </span>
-              </div>
-            ) : (
-              <span>&#2547; {formatBDT(productData.price)}</span>
-            )}
-          </div>
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        <meta name="twitter:image" content={primaryImage} />
+      </Helmet>
 
-          <p className="mt-5 text-gray-500 md:w-4/5">
-            {productData.description}
-          </p>
-
-          {/* Sizes */}
-          {Array.isArray(productData.sizes) && productData.sizes.length > 0 && (
-            <div className="flex flex-col gap-4 my-8">
-              <p>Select Size</p>
-              <div className="flex flex-wrap gap-2">
-                {productData.sizes.map((sz, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSize(sz)}
-                    type="button"
-                    className={`border py-2 px-4 bg-gray-100 rounded-md ${
-                      sz === size ? "border-orange-500" : ""
-                    }`}
-                  >
-                    {sz}
-                  </button>
-                ))}
-              </div>
+      <div className="pt-10 transition-opacity duration-500 ease-in border-t-2 opacity-100">
+        {/* Product Data */}
+        <div className="flex flex-col gap-12 sm:gap-12 sm:flex-row">
+          {/* Product Images */}
+          <div className="flex flex-col-reverse flex-1 gap-3 sm:flex-row">
+            <div className="flex justify-between overflow-x-auto sm:flex-col sm:overflow-y-scroll sm:justify-normal sm:w-[18.7%] w-full">
+              {imageUrls.map((url, index) => (
+                <img
+                  src={url}
+                  key={index}
+                  onClick={() => setActiveImage(url)}
+                  className={`w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer ${
+                    activeImage === url
+                      ? "border-2 border-gray-600 py-2 px-2"
+                      : ""
+                  }`}
+                  alt={`Photo ${index + 1}`}
+                />
+              ))}
             </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-3 sm:w-4/5">
-            {/* Confirm Order (green) */}
-            <button
-              onClick={handleConfirmOrder}
-              className="w-full py-3 text-white font-semibold rounded bg-green-600 hover:bg-green-700 active:scale-[.99] transition"
-            >
-              অর্ডার কনফার্ম করুন
-            </button>
-
-            {/* WhatsApp Order (green) */}
-            <button
-              onClick={handleWhatsAppOrder}
-              className="w-full py-3 text-white font-semibold rounded bg-green-700 hover:bg-green-800 active:scale-[.99] transition"
-            >
-              WHATSAPP এ অর্ডার করুন
-            </button>
+            <div className="w-full sm:w-[80%]">
+              {activeImage ? (
+                <img
+                  src={activeImage}
+                  className="w-full h-auto"
+                  alt={productData.name}
+                />
+              ) : (
+                <div className="w-full aspect-square bg-gray-100" />
+              )}
+            </div>
           </div>
 
-          <hr className="mt-8 sm:w-4/5" />
-          <div className="flex flex-col gap-1 mt-5 text-sm text-gray-500">
-            <p>Guaranteed 100% Authentic – Shop with Confidence!</p>
-            <p>Enjoy Cash on Delivery – Pay at Your Doorstep!</p>
-            <p>
-              Hassle-Free Returns & Exchanges – 10 Days, No Questions Asked!
+          {/* Product Info */}
+          <div className="flex-1">
+            <h1 className="mt-2 text-2xl font-medium">{productData.name}</h1>
+
+            {/* Price (with discount display if applicable) */}
+            <div className="mt-5 text-3xl font-medium">
+              {Number(productData.discount) > 0 ? (
+                <div className="flex items-baseline gap-3">
+                  <span className="line-through text-gray-400 text-2xl">
+                    &#2547; {formatBDT(productData.price)}
+                  </span>
+                  <span>&#2547; {formatBDT(finalPrice)}</span>
+                  <span className="ml-2 text-sm text-green-600 font-semibold">
+                    {Number(productData.discount)}% OFF
+                  </span>
+                </div>
+              ) : (
+                <span>&#2547; {formatBDT(productData.price)}</span>
+              )}
+            </div>
+
+            <p className="mt-5 text-gray-500 md:w-4/5">
+              {productData.description}
             </p>
+
+            {/* Sizes */}
+            {Array.isArray(productData.sizes) &&
+              productData.sizes.length > 0 && (
+                <div className="flex flex-col gap-4 my-8">
+                  <p>Select Size</p>
+                  <div className="flex flex-wrap gap-2">
+                    {productData.sizes.map((sz, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSize(sz)}
+                        type="button"
+                        className={`border py-2 px-4 bg-gray-100 rounded-md ${
+                          sz === size ? "border-orange-500" : ""
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3 sm:w-4/5">
+              {/* Confirm Order (green) */}
+              <button
+                onClick={handleConfirmOrder}
+                className="w-full py-3 text-white font-semibold rounded bg-green-600 hover:bg-green-700 active:scale-[.99] transition"
+              >
+                অর্ডার কনফার্ম করুন
+              </button>
+
+              {/* WhatsApp Order (green) */}
+              <button
+                onClick={handleWhatsAppOrder}
+                className="w-full py-3 text-white font-semibold rounded bg-green-700 hover:bg-green-800 active:scale-[.99] transition"
+              >
+                WHATSAPP এ অর্ডার করুন
+              </button>
+            </div>
+
+            <hr className="mt-8 sm:w-4/5" />
+            <div className="flex flex-col gap-1 mt-5 text-sm text-gray-500">
+              <p>Guaranteed 100% Authentic – Shop with Confidence!</p>
+              <p>Enjoy Cash on Delivery – Pay at Your Doorstep!</p>
+              <p>
+                Hassle-Free Returns & Exchanges – 10 Days, No Questions Asked!
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Description and Review Section */}
-      <div className="mt-20">
-        <div className="flex">
-          <b className="px-5 py-3 text-sm border">Description</b>
+        {/* Description and Review Section */}
+        <div className="mt-20">
+          <div className="flex">
+            <b className="px-5 py-3 text-sm border">Description</b>
+          </div>
+
+          {/* Long Description (rich HTML) */}
+          <div className="flex flex-col gap-4 px-6 py-6 text-sm text-gray-700 border">
+            {productData.longDescription ? (
+              <div
+                className="prose max-w-none prose-sm sm:prose"
+                dangerouslySetInnerHTML={{
+                  __html: productData.longDescription,
+                }}
+              />
+            ) : (
+              <>
+                <p>
+                  Elevate your style with our meticulously crafted Trendify
+                  quality products. Designed with a perfect balance of elegance
+                  and practicality, these Trendify quality products are made
+                  from premium materials that ensure both durability and
+                  comfort.
+                </p>
+                <p>
+                  Whether you&apos;re dressing up for a special occasion or
+                  adding a touch of sophistication to your everyday look, the
+                  Trendify quality products offer unparalleled versatility. Its
+                  timeless design, coupled with a flawless fit, makes it a
+                  must-have addition to any wardrobe. Don’t miss out—experience
+                  the difference today.
+                </p>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Long Description (rich HTML) */}
-        <div className="flex flex-col gap-4 px-6 py-6 text-sm text-gray-700 border">
-          {productData.longDescription ? (
-            <div
-              className="prose max-w-none prose-sm sm:prose"
-              dangerouslySetInnerHTML={{ __html: productData.longDescription }}
-            />
-          ) : (
-            <>
-              <p>
-                Elevate your style with our meticulously crafted Trendify
-                quality products. Designed with a perfect balance of elegance
-                and practicality, these Trendify quality products are made from
-                premium materials that ensure both durability and comfort.
-              </p>
-              <p>
-                Whether you&apos;re dressing up for a special occasion or adding
-                a touch of sophistication to your everyday look, the Trendify
-                quality products offer unparalleled versatility. Its timeless
-                design, coupled with a flawless fit, makes it a must-have
-                addition to any wardrobe. Don’t miss out—experience the
-                difference today.
-              </p>
-            </>
-          )}
-        </div>
+        {/* Related Products */}
+        <RelatedProducts
+          category={productData.category}
+          subCategory={productData.subCategory}
+        />
       </div>
-
-      {/* Related Products */}
-      <RelatedProducts
-        category={productData.category}
-        subCategory={productData.subCategory}
-      />
-    </div>
+    </>
   );
 };
 

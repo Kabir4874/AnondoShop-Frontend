@@ -1,7 +1,9 @@
 import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { SITE_URL } from "../App";
 import { assets } from "../assets/assets";
 import ProductItem from "../components/ProductItem";
 import Title from "../components/Title";
@@ -253,258 +255,296 @@ const Collection = () => {
   ]);
 
   const totalResults = filteredProducts.length;
+  const canonicalUrl = `${SITE_URL}/collection`;
 
   return (
-    <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 border-top">
-      <div className="flex flex-col sm:flex-row sm:gap-10 gap-4">
-        {/* Filter Column */}
-        <aside className="w-full sm:min-w-64 sm:w-64">
-          <button
-            type="button"
-            onClick={() => setShowFilter((s) => !s)}
-            className="sm:hidden flex items-center justify-between w-full py-3 px-4 rounded-md border text-left text-base font-medium"
-            aria-expanded={showFilter}
-            aria-controls="mobile-filters"
-          >
-            <span className="flex items-center gap-2">
-              <img
-                src={assets.filter_icon || assets.dropdown_icon}
-                alt=""
-                className="h-4 w-4"
-              />
-              FILTERS
-            </span>
-            <img
-              className={`h-3 transition-transform ${
-                showFilter ? "rotate-90" : ""
-              }`}
-              src={assets.dropdown_icon}
-              alt="Toggle filters"
-            />
-          </button>
+    <>
+      <Helmet>
+        <title>All Collections | AnondoShop</title>
+        <meta
+          name="description"
+          content="Browse all products on AnondoShop. Filter by category, size, best sellers, discounts and price range to find the perfect items with bKash and Cash on Delivery in Bangladesh."
+        />
+        <link rel="canonical" href={canonicalUrl} />
 
-          {/* Categories (dynamic) */}
-          <div
-            id="mobile-filters"
-            className={`${
-              showFilter ? "block" : "hidden"
-            } sm:block mt-2 sm:mt-6 border border-gray-300 rounded-md py-3 pl-5`}
-          >
-            <p className="mb-3 text-sm font-medium">CATEGORIES</p>
+        {/* Open Graph */}
+        <meta property="og:site_name" content="AnondoShop" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="All Collections | AnondoShop" />
+        <meta
+          property="og:description"
+          content="Explore the full AnondoShop collection – fashion, lifestyle and more with powerful filters for category, size, best sellers and discounts."
+        />
+        <meta
+          property="og:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+        <meta property="og:url" content={canonicalUrl} />
 
-            {loadingCategories ? (
-              <div className="text-xs text-gray-500 px-1 py-1">Loading…</div>
-            ) : categoryOptions.length === 0 ? (
-              <div className="text-xs text-gray-500 px-1 py-1">
-                No categories found.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-                {categoryOptions.map((opt) => {
-                  const val = opt?.name || opt?.slug || "";
-                  if (!val) return null;
-                  return (
-                    <label
-                      key={opt._id || val}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <input
-                        className="w-3 h-3"
-                        type="checkbox"
-                        value={val}
-                        onChange={toggleCategory}
-                        checked={category.includes(val)}
-                      />
-                      {val}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="All Collections | AnondoShop" />
+        <meta
+          name="twitter:description"
+          content="Discover all AnondoShop products and refine your search by category, size, price and offers for a smooth online shopping experience in Bangladesh."
+        />
+        <meta
+          name="twitter:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+      </Helmet>
 
-          {/* Sizes */}
-          <div
-            className={`${
-              showFilter ? "block" : "hidden"
-            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
-          >
-            <p className="mb-3 text-sm font-medium">SIZES</p>
-            <div className="flex flex-wrap gap-2 text-sm font-light text-gray-700 pr-3">
-              {SIZE_OPTIONS.map((opt) => (
-                <label
-                  key={opt}
-                  className="inline-flex items-center gap-2 cursor-pointer border rounded px-2 py-1"
-                >
-                  <input
-                    className="w-3 h-3"
-                    type="checkbox"
-                    value={opt}
-                    onChange={toggleSize}
-                    checked={sizes.includes(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Price range */}
-          <div
-            className={`${
-              showFilter ? "block" : "hidden"
-            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5 pr-5`}
-          >
-            <p className="mb-3 text-sm font-medium">PRICE RANGE (৳)</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder={String(globalMinPrice || 0)}
-                value={priceMin}
-                onChange={(e) => setPriceMin(e.target.value)}
-                className="w-full max-w-24 px-2 py-1 border rounded"
-                aria-label="Minimum price"
-              />
-              <span className="text-gray-500">—</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder={String(globalMaxPrice || 0)}
-                value={priceMax}
-                onChange={(e) => setPriceMax(e.target.value)}
-                className="w-full max-w-24 px-2 py-1 border rounded"
-                aria-label="Maximum price"
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Data range: ৳{globalMinPrice} – ৳{globalMaxPrice}
-            </p>
-          </div>
-
-          {/* Flags */}
-          <div
-            className={`${
-              showFilter ? "block" : "hidden"
-            } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
-          >
-            <p className="mb-3 text-sm font-medium">FILTER BY</p>
-            <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  checked={bestSellerOnly}
-                  onChange={(e) => setBestSellerOnly(e.target.checked)}
+      <div className="mx-auto w-full max-w-[1560px] px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 border-top">
+        <div className="flex flex-col sm:flex-row sm:gap-10 gap-4">
+          {/* Filter Column */}
+          <aside className="w-full sm:min-w-64 sm:w-64">
+            <button
+              type="button"
+              onClick={() => setShowFilter((s) => !s)}
+              className="sm:hidden flex items-center justify-between w-full py-3 px-4 rounded-md border text-left text-base font-medium"
+              aria-expanded={showFilter}
+              aria-controls="mobile-filters"
+            >
+              <span className="flex items-center gap-2">
+                <img
+                  src={assets.filter_icon || assets.dropdown_icon}
+                  alt=""
+                  className="h-4 w-4"
                 />
-                Best Sellers only
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  className="w-3 h-3"
-                  type="checkbox"
-                  checked={discountOnly}
-                  onChange={(e) => setDiscountOnly(e.target.checked)}
-                />
-                On discount
-              </label>
-            </div>
-          </div>
-
-          {/* Clear Filters Button */}
-          <button
-            className={`${
-              showFilter ? "inline-flex" : "hidden"
-            } sm:inline-flex items-center justify-center px-4 py-2 mt-1 text-white bg-black rounded hover:bg-gray-900 w/full sm:w-auto`.replace(
-              "/",
-              "-"
-            )}
-            onClick={clearFilters}
-            type="button"
-          >
-            Clear Filters
-          </button>
-        </aside>
-
-        {/* Products Column */}
-        <section className="flex-1">
-          {/* Header: Title + Sort */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex flex-col">
-              <Title text1={"ALL"} text2={"COLLECTIONS"} />
-              <span className="text-xs text-gray-500 mt-1">
-                {totalResults} result{totalResults === 1 ? "" : "s"}
+                FILTERS
               </span>
-              {category.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {category.map((c) => (
-                    <span
-                      key={c}
-                      className="text-xs px-2 py-1 rounded-full border bg-white"
-                      title="Active category filter"
-                    >
-                      {c}
-                    </span>
-                  ))}
+              <img
+                className={`h-3 transition-transform ${
+                  showFilter ? "rotate-90" : ""
+                }`}
+                src={assets.dropdown_icon}
+                alt="Toggle filters"
+              />
+            </button>
+
+            {/* Categories (dynamic) */}
+            <div
+              id="mobile-filters"
+              className={`${
+                showFilter ? "block" : "hidden"
+              } sm:block mt-2 sm:mt-6 border border-gray-300 rounded-md py-3 pl-5`}
+            >
+              <p className="mb-3 text-sm font-medium">CATEGORIES</p>
+
+              {loadingCategories ? (
+                <div className="text-xs text-gray-500 px-1 py-1">Loading…</div>
+              ) : categoryOptions.length === 0 ? (
+                <div className="text-xs text-gray-500 px-1 py-1">
+                  No categories found.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
+                  {categoryOptions.map((opt) => {
+                    const val = opt?.name || opt?.slug || "";
+                    if (!val) return null;
+                    return (
+                      <label
+                        key={opt._id || val}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          className="w-3 h-3"
+                          type="checkbox"
+                          value={val}
+                          onChange={toggleCategory}
+                          checked={category.includes(val)}
+                        />
+                        {val}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Sort control */}
-            <label className="inline-flex items-center gap-2 text-sm sm:text-base">
-              <span className="text-gray-700">Sort</span>
-              <select
-                onChange={(e) => setSortType(e.target.value)}
-                value={sortType}
-                className="px-2 py-2 text-sm border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 w-full sm:w-auto"
-                aria-label="Sort products"
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="relevant">Relevant</option>
-                <option value="low-high">Price: Low to High</option>
-                <option value="high-low">Price: High to Low</option>
-              </select>
-            </label>
-          </div>
+            {/* Sizes */}
+            <div
+              className={`${
+                showFilter ? "block" : "hidden"
+              } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
+            >
+              <p className="mb-3 text-sm font-medium">SIZES</p>
+              <div className="flex flex-wrap gap-2 text-sm font-light text-gray-700 pr-3">
+                {SIZE_OPTIONS.map((opt) => (
+                  <label
+                    key={opt}
+                    className="inline-flex items-center gap-2 cursor-pointer border rounded px-2 py-1"
+                  >
+                    <input
+                      className="w-3 h-3"
+                      type="checkbox"
+                      value={opt}
+                      onChange={toggleSize}
+                      checked={sizes.includes(opt)}
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            </div>
 
-          {/* Product Grid */}
-          {filteredProducts.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">
-              <img
-                src={assets.search_icon}
-                alt=""
-                className="mx-auto mb-3 h-6 w-6 opacity-60"
-              />
-              <p className="text-sm">No products match your filters.</p>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="mt-4 inline-flex items-center justify-center rounded bg-black px-4 py-2 text-white hover:bg-gray-900"
-              >
-                Reset filters
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-4">
-              {filteredProducts.map((item) => (
-                <ProductItem
-                  key={item._id ?? `${item.name}-${item.price}`}
-                  id={item._id}
-                  name={item.name}
-                  image={item.image}
-                  price={item.price}
-                  discount={item.discount || 0}
-                  sizes={item.sizes}
+            {/* Price range */}
+            <div
+              className={`${
+                showFilter ? "block" : "hidden"
+              } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5 pr-5`}
+            >
+              <p className="mb-3 text-sm font-medium">PRICE RANGE (৳)</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  placeholder={String(globalMinPrice || 0)}
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  className="w-full max-w-24 px-2 py-1 border rounded"
+                  aria-label="Minimum price"
                 />
-              ))}
+                <span className="text-gray-500">—</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  placeholder={String(globalMaxPrice || 0)}
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  className="w-full max-w-24 px-2 py-1 border rounded"
+                  aria-label="Maximum price"
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Data range: ৳{globalMinPrice} – ৳{globalMaxPrice}
+              </p>
             </div>
-          )}
-        </section>
+
+            {/* Flags */}
+            <div
+              className={`${
+                showFilter ? "block" : "hidden"
+              } sm:block my-4 sm:my-5 border border-gray-300 rounded-md py-3 pl-5`}
+            >
+              <p className="mb-3 text-sm font-medium">FILTER BY</p>
+              <div className="flex flex-col gap-2 text-sm font-light text-gray-700">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    className="w-3 h-3"
+                    type="checkbox"
+                    checked={bestSellerOnly}
+                    onChange={(e) => setBestSellerOnly(e.target.checked)}
+                  />
+                  Best Sellers only
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    className="w-3 h-3"
+                    type="checkbox"
+                    checked={discountOnly}
+                    onChange={(e) => setDiscountOnly(e.target.checked)}
+                  />
+                  On discount
+                </label>
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            <button
+              className={`${
+                showFilter ? "inline-flex" : "hidden"
+              } sm:inline-flex items-center justify-center px-4 py-2 mt-1 text-white bg-black rounded hover:bg-gray-900 w/full sm:w-auto`.replace(
+                "/",
+                "-"
+              )}
+              onClick={clearFilters}
+              type="button"
+            >
+              Clear Filters
+            </button>
+          </aside>
+
+          {/* Products Column */}
+          <section className="flex-1">
+            {/* Header: Title + Sort */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div className="flex flex-col">
+                <Title text1={"ALL"} text2={"COLLECTIONS"} />
+                <span className="text-xs text-gray-500 mt-1">
+                  {totalResults} result{totalResults === 1 ? "" : "s"}
+                </span>
+                {category.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {category.map((c) => (
+                      <span
+                        key={c}
+                        className="text-xs px-2 py-1 rounded-full border bg-white"
+                        title="Active category filter"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sort control */}
+              <label className="inline-flex items-center gap-2 text-sm sm:text-base">
+                <span className="text-gray-700">Sort</span>
+                <select
+                  onChange={(e) => setSortType(e.target.value)}
+                  value={sortType}
+                  className="px-2 py-2 text-sm border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300 w-full sm:w-auto"
+                  aria-label="Sort products"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="relevant">Relevant</option>
+                  <option value="low-high">Price: Low to High</option>
+                  <option value="high-low">Price: High to Low</option>
+                </select>
+              </label>
+            </div>
+
+            {/* Product Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
+                <img
+                  src={assets.search_icon}
+                  alt=""
+                  className="mx-auto mb-3 h-6 w-6 opacity-60"
+                />
+                <p className="text-sm">No products match your filters.</p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 inline-flex items-center justify-center rounded bg-black px-4 py-2 text-white hover:bg-gray-900"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-4">
+                {filteredProducts.map((item) => (
+                  <ProductItem
+                    key={item._id ?? `${item.name}-${item.price}`}
+                    id={item._id}
+                    name={item.name}
+                    image={item.image}
+                    price={item.price}
+                    discount={item.discount || 0}
+                    sizes={item.sizes}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

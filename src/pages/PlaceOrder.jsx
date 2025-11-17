@@ -1,11 +1,12 @@
 import axios from "axios";
 import { useContext, useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { toast } from "react-toastify";
+import { SITE_URL } from "../App";
 import CartTotal from "../components/CartTotal";
 import Title from "../components/Title";
 import { ShopContext } from "../context/ShopContext";
 import { trackEvent } from "../lib/tracking";
-
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
 
 // compute unit price (discounted + XXL surcharge)
@@ -267,253 +268,289 @@ const PlaceOrder = () => {
       );
     }
   };
+  const canonicalUrl = `${SITE_URL}/place-order`;
 
   return (
-    <form
-      onSubmit={onSubmitHandler}
-      className="flex flex-col justify-between gap-4 pt-5 sm:flex-row sm:pt-14 min-h-[80vh] border-t"
-    >
-      {/* Left: Items + Delivery area + Address */}
-      <div className="flex w-full flex-col gap-6 sm:max-w-[560px]">
-        {/* 1) Items list with qty controls */}
-        <div>
-          <div className="mb-3 text-xl sm:text-2xl">
-            <Title text1={"YOUR"} text2={"ITEMS"} />
-          </div>
+    <>
+      <Helmet>
+        <title>Place Order | AnondoShop</title>
+        <meta
+          name="description"
+          content="Complete your order on AnondoShop by confirming your items, delivery area and shipping address. Pay with Cash on Delivery anywhere in Bangladesh."
+        />
+        <link rel="canonical" href={canonicalUrl} />
 
-          {enriched.length === 0 ? (
-            <div className="rounded border p-4 text-sm text-gray-500">
-              No items selected. Go back and choose a product.
+        {/* Open Graph */}
+        <meta property="og:site_name" content="AnondoShop" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Place Order | AnondoShop" />
+        <meta
+          property="og:description"
+          content="Review your cart, select delivery area, fill in your address and place your order securely on AnondoShop with Cash on Delivery."
+        />
+        <meta
+          property="og:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+        <meta property="og:url" content={canonicalUrl} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Place Order | AnondoShop" />
+        <meta
+          name="twitter:description"
+          content="Finish your AnondoShop purchase by confirming your products, delivery details and placing your order with Cash on Delivery."
+        />
+        <meta
+          name="twitter:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+      </Helmet>
+      <form
+        onSubmit={onSubmitHandler}
+        className="flex flex-col justify-between gap-4 pt-5 sm:flex-row sm:pt-14 min-h-[80vh] border-t"
+      >
+        {/* Left: Items + Delivery area + Address */}
+        <div className="flex w-full flex-col gap-6 sm:max-w-[560px]">
+          {/* 1) Items list with qty controls */}
+          <div>
+            <div className="mb-3 text-xl sm:text-2xl">
+              <Title text1={"YOUR"} text2={"ITEMS"} />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {enriched.map((it, idx) => (
-                <div
-                  key={`${it.productId}-${it.size}-${idx}`}
-                  className="flex items-center justify-between gap-3 rounded border p-3"
-                >
-                  {/* Thumbnail + info */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded border bg-gray-50">
-                      {it.thumb ? (
-                        <img
-                          src={it.thumb}
-                          alt={it.product?.name || "Product"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gray-100" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {it.product?.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Size: {it.size || "Default"}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Unit: ৳ {it.unit.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* qty + line + remove */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center rounded border">
+            {enriched.length === 0 ? (
+              <div className="rounded border p-4 text-sm text-gray-500">
+                No items selected. Go back and choose a product.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {enriched.map((it, idx) => (
+                  <div
+                    key={`${it.productId}-${it.size}-${idx}`}
+                    className="flex items-center justify-between gap-3 rounded border p-3"
+                  >
+                    {/* Thumbnail + info */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded border bg-gray-50">
+                        {it.thumb ? (
+                          <img
+                            src={it.thumb}
+                            alt={it.product?.name || "Product"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gray-100" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {it.product?.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Size: {it.size || "Default"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Unit: ৳ {it.unit.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* qty + line + remove */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center rounded border">
+                        <button
+                          type="button"
+                          onClick={() => decQty(idx)}
+                          className="px-2 py-1 text-sm"
+                          aria-label="Decrease quantity"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center text-sm">
+                          {it.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => incQty(idx)}
+                          className="px-2 py-1 text-sm"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <div className="hidden text-sm text-gray-700 sm:block">
+                        ৳ {it.line.toLocaleString()}
+                      </div>
+
                       <button
                         type="button"
-                        onClick={() => decQty(idx)}
-                        className="px-2 py-1 text-sm"
-                        aria-label="Decrease quantity"
+                        onClick={() => removeItem(idx)}
+                        className="text-xs text-red-600 hover:underline"
                       >
-                        −
-                      </button>
-                      <span className="w-8 text-center text-sm">
-                        {it.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => incQty(idx)}
-                        className="px-2 py-1 text-sm"
-                        aria-label="Increase quantity"
-                      >
-                        +
+                        Remove
                       </button>
                     </div>
-
-                    <div className="hidden text-sm text-gray-700 sm:block">
-                      ৳ {it.line.toLocaleString()}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => removeItem(idx)}
-                      className="text-xs text-red-600 hover:underline"
-                    >
-                      Remove
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 3) Address */}
+          <div>
+            <div className="mb-3 text-xl sm:text-2xl">
+              <Title text1={"DELIVERY"} text2={"INFORMATION"} />
             </div>
-          )}
-        </div>
 
-        {/* 3) Address */}
-        <div>
-          <div className="mb-3 text-xl sm:text-2xl">
-            <Title text1={"DELIVERY"} text2={"INFORMATION"} />
+            <div className="flex flex-col gap-3">
+              {/* Name */}
+              <label className="text-sm font-semibold text-gray-800">
+                আপনার নাম লিখুন <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                name="recipientName"
+                value={formAddress.recipientName}
+                onChange={onChangeAddress}
+                className="w-full px-4 py-2 border border-gray-300 rounded"
+                type="text"
+                placeholder="সম্পূর্ণ নাম লিখুন"
+              />
+
+              {/* Phone */}
+              <label className="text-sm font-semibold text-gray-800">
+                আপনার মোবাইল নাম্বারটি লিখুন{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                name="phone"
+                value={formAddress.phone}
+                onChange={onChangeAddress}
+                className="w-full px-4 py-2 border border-gray-300 rounded"
+                type="tel"
+                inputMode="tel"
+                placeholder="এগারো ডিজিটের সঠিক ফোন নাম্বারটি লিখুন"
+              />
+
+              {/* Address */}
+              <label className="text-sm font-semibold text-gray-800">
+                সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                name="addressLine1"
+                value={formAddress.addressLine1}
+                onChange={onChangeAddress}
+                className="w-full px-4 py-2 border border-gray-300 rounded"
+                type="text"
+                placeholder="হাউজ নম্বর, রোড, উপজেলা, জেলা"
+              />
+
+              {/* District */}
+              <label className="text-sm font-semibold text-gray-800">
+                জেলা <span className="text-red-500">*</span>
+              </label>
+              <input
+                required
+                name="district"
+                value={formAddress.district}
+                onChange={onChangeAddress}
+                className="w-full px-4 py-2 border border-gray-300 rounded"
+                type="text"
+                placeholder="জেলা লিখুন (যেমন: ঢাকা)"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {/* Name */}
-            <label className="text-sm font-semibold text-gray-800">
-              আপনার নাম লিখুন <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="recipientName"
-              value={formAddress.recipientName}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="সম্পূর্ণ নাম লিখুন"
-            />
+          {/* 2) Delivery area selection */}
+          <div>
+            <div className="mb-3 text-xl sm:text-2xl">
+              <Title text1={"DELIVERY"} text2={"AREA"} />
+            </div>
+            <div className="rounded border p-4 text-sm text-gray-800 space-y-2">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="deliveryArea"
+                    value="inside"
+                    checked={deliveryArea === "inside"}
+                    onChange={() => setDeliveryArea("inside")}
+                    className="h-4 w-4"
+                  />
+                  Inside Dhaka City
+                </span>
+                <span>৳ 80.00</span>
+              </label>
 
-            {/* Phone */}
-            <label className="text-sm font-semibold text-gray-800">
-              আপনার মোবাইল নাম্বারটি লিখুন{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="phone"
-              value={formAddress.phone}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="tel"
-              inputMode="tel"
-              placeholder="এগারো ডিজিটের সঠিক ফোন নাম্বারটি লিখুন"
-            />
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="deliveryArea"
+                    value="outside"
+                    checked={deliveryArea === "outside"}
+                    onChange={() => setDeliveryArea("outside")}
+                    className="h-4 w-4"
+                  />
+                  Outside Dhaka City
+                </span>
+                <span>৳ 150.00</span>
+              </label>
 
-            {/* Address */}
-            <label className="text-sm font-semibold text-gray-800">
-              সম্পূর্ণ ঠিকানা <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="addressLine1"
-              value={formAddress.addressLine1}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="হাউজ নম্বর, রোড, উপজেলা, জেলা"
-            />
+              {/* New: Gazipur */}
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="deliveryArea"
+                    value="gazipur"
+                    checked={deliveryArea === "gazipur"}
+                    onChange={() => setDeliveryArea("gazipur")}
+                    className="h-4 w-4"
+                  />
+                  Gazipur
+                </span>
+                <span>৳ 120.00</span>
+              </label>
 
-            {/* District */}
-            <label className="text-sm font-semibold text-gray-800">
-              জেলা <span className="text-red-500">*</span>
-            </label>
-            <input
-              required
-              name="district"
-              value={formAddress.district}
-              onChange={onChangeAddress}
-              className="w-full px-4 py-2 border border-gray-300 rounded"
-              type="text"
-              placeholder="জেলা লিখুন (যেমন: ঢাকা)"
-            />
+              {/* New: Ashulia */}
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="deliveryArea"
+                    value="ashulia"
+                    checked={deliveryArea === "ashulia"}
+                    onChange={() => setDeliveryArea("ashulia")}
+                    className="h-4 w-4"
+                  />
+                  Ashulia
+                </span>
+                <span>৳ 120.00</span>
+              </label>
+            </div>
           </div>
         </div>
 
-        {/* 2) Delivery area selection */}
-        <div>
-          <div className="mb-3 text-xl sm:text-2xl">
-            <Title text1={"DELIVERY"} text2={"AREA"} />
+        {/* Right: Summary + Payment */}
+        <div className="mt-8">
+          <div className="mt-8 min-w-80">
+            <CartTotal
+              deliveryFee={deliveryFee}
+              destinationLabel={deliveryLabel}
+              subtotalOverride={subtotal}
+            />
           </div>
-          <div className="rounded border p-4 text-sm text-gray-800 space-y-2">
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="deliveryArea"
-                  value="inside"
-                  checked={deliveryArea === "inside"}
-                  onChange={() => setDeliveryArea("inside")}
-                  className="h-4 w-4"
-                />
-                Inside Dhaka City
-              </span>
-              <span>৳ 80.00</span>
-            </label>
 
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="deliveryArea"
-                  value="outside"
-                  checked={deliveryArea === "outside"}
-                  onChange={() => setDeliveryArea("outside")}
-                  className="h-4 w-4"
-                />
-                Outside Dhaka City
-              </span>
-              <span>৳ 150.00</span>
-            </label>
+          <div className="mt-12">
+            <Title text1={"PAYMENT"} text2={"METHODS"} />
 
-            {/* New: Gazipur */}
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="deliveryArea"
-                  value="gazipur"
-                  checked={deliveryArea === "gazipur"}
-                  onChange={() => setDeliveryArea("gazipur")}
-                  className="h-4 w-4"
-                />
-                Gazipur
-              </span>
-              <span>৳ 120.00</span>
-            </label>
-
-            {/* New: Ashulia */}
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="deliveryArea"
-                  value="ashulia"
-                  checked={deliveryArea === "ashulia"}
-                  onChange={() => setDeliveryArea("ashulia")}
-                  className="h-4 w-4"
-                />
-                Ashulia
-              </span>
-              <span>৳ 120.00</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Summary + Payment */}
-      <div className="mt-8">
-        <div className="mt-8 min-w-80">
-          <CartTotal
-            deliveryFee={deliveryFee}
-            destinationLabel={deliveryLabel}
-            subtotalOverride={subtotal}
-          />
-        </div>
-
-        <div className="mt-12">
-          <Title text1={"PAYMENT"} text2={"METHODS"} />
-
-          <div className="flex flex-col gap-3 lg:flex-row">
-            {/* bKash */}
-            {/* <div
+            <div className="flex flex-col gap-3 lg:flex-row">
+              {/* bKash */}
+              {/* <div
               onClick={() => setMethod("bkash")}
               className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
             >
@@ -531,33 +568,34 @@ const PlaceOrder = () => {
               />
             </div> */}
 
-            {/* COD */}
-            <div
-              onClick={() => setMethod("cod")}
-              className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
-            >
-              <p
-                className={`min-w-3.5 h-3.5 border rounded-full ${
-                  method === "cod" ? "bg-green-600" : ""
-                }`}
-              ></p>
-              <p className="mx-4 text-sm font-medium text-gray-500">
-                CASH ON DELIVERY
-              </p>
+              {/* COD */}
+              <div
+                onClick={() => setMethod("cod")}
+                className="flex items-center gap-3 p-2 px-3 border cursor-pointer"
+              >
+                <p
+                  className={`min-w-3.5 h-3.5 border rounded-full ${
+                    method === "cod" ? "bg-green-600" : ""
+                  }`}
+                ></p>
+                <p className="mx-4 text-sm font-medium text-gray-500">
+                  CASH ON DELIVERY
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full mt-8 text-end">
+              <button
+                type="submit"
+                className="px-16 py-3 text-sm text-white bg-black active:bg-gray-800"
+              >
+                PLACE ORDER
+              </button>
             </div>
           </div>
-
-          <div className="w-full mt-8 text-end">
-            <button
-              type="submit"
-              className="px-16 py-3 text-sm text-white bg-black active:bg-gray-800"
-            >
-              PLACE ORDER
-            </button>
-          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </>
   );
 };
 

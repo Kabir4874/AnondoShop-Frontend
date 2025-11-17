@@ -1,6 +1,8 @@
 import axios from "axios";
 import { useContext, useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { toast } from "react-toastify";
+import { SITE_URL } from "../App";
 import { ShopContext } from "../context/ShopContext";
 
 const BD_PHONE_REGEX = /^(?:\+?88)?01[3-9]\d{8}$/;
@@ -12,6 +14,8 @@ const Login = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+
+  const canonicalUrl = `${SITE_URL}/login`;
 
   const normalizeBDPhone = (v) => {
     if (!v) return v;
@@ -79,77 +83,114 @@ const Login = () => {
   }, [token, navigate]);
 
   return (
-    <form
-      onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
-    >
-      <div className="inline-flex items-center gap-2 mt-10 mb-2">
-        <p className="text-3xl prata-regular">{currentState}</p>
-        <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
-      </div>
+    <>
+      <Helmet>
+        <title>Login or Sign Up | AnondoShop</title>
+        <meta
+          name="description"
+          content="Login or create your AnondoShop account to track orders, save your address and enjoy a faster checkout experience with bKash and Cash on Delivery in Bangladesh."
+        />
+        <link rel="canonical" href={canonicalUrl} />
 
-      {currentState === "Login" ? null : (
+        {/* Open Graph */}
+        <meta property="og:site_name" content="AnondoShop" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Login or Sign Up | AnondoShop" />
+        <meta
+          property="og:description"
+          content="Access your AnondoShop account or create a new one to manage orders, addresses and a smooth online shopping experience."
+        />
+        <meta
+          property="og:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+        <meta property="og:url" content={canonicalUrl} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Login or Sign Up | AnondoShop" />
+        <meta
+          name="twitter:description"
+          content="Sign in to your AnondoShop account or register with your Bangladesh phone number to start shopping."
+        />
+        <meta
+          name="twitter:image"
+          content="https://cdn-icons-png.flaticon.com/512/625/625149.png"
+        />
+      </Helmet>
+
+      <form
+        onSubmit={onSubmitHandler}
+        className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
+      >
+        <div className="inline-flex items-center gap-2 mt-10 mb-2">
+          <p className="text-3xl prata-regular">{currentState}</p>
+          <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
+        </div>
+
+        {currentState === "Login" ? null : (
+          <input
+            onChange={(e) => setName(e.target.value)}
+            value={name}
+            type="text"
+            className="w-full px-3 py-2 border border-gray-800"
+            placeholder="Your name"
+            required
+          />
+        )}
+
         <input
-          onChange={(e) => setName(e.target.value)}
-          value={name}
-          type="text"
+          onChange={(e) => setPhone(e.target.value)}
+          value={phone}
+          type="tel"
           className="w-full px-3 py-2 border border-gray-800"
-          placeholder="Your name"
+          placeholder="Phone (e.g. 01XXXXXXXXX or +8801XXXXXXXXX)"
           required
         />
-      )}
 
-      <input
-        onChange={(e) => setPhone(e.target.value)}
-        value={phone}
-        type="tel"
-        className="w-full px-3 py-2 border border-gray-800"
-        placeholder="Phone (e.g. 01XXXXXXXXX or +8801XXXXXXXXX)"
-        required
-      />
+        <input
+          onChange={(e) => setPassword(e.target.value)}
+          value={password}
+          type="password"
+          className="w-full px-3 py-2 border border-gray-800"
+          placeholder="Password (min 8 chars)"
+          required
+        />
 
-      <input
-        onChange={(e) => setPassword(e.target.value)}
-        value={password}
-        type="password"
-        className="w-full px-3 py-2 border border-gray-800"
-        placeholder="Password (min 8 chars)"
-        required
-      />
-
-      <div className="flex justify-between w-full text-sm mt-[-8px]">
-        <p
-          className="cursor-pointer"
-          onClick={() =>
-            toast.info(
-              "You can set your password after placing your first order too."
-            )
-          }
-        >
-          Forgot your password?
-        </p>
-
-        {currentState === "Login" ? (
+        <div className="flex justify-between w-full text-sm mt-[-8px]">
           <p
-            onClick={() => setCurrentState("Sign Up")}
             className="cursor-pointer"
+            onClick={() =>
+              toast.info(
+                "You can set your password after placing your first order too."
+              )
+            }
           >
-            Create a new account
+            Forgot your password?
           </p>
-        ) : (
-          <p
-            onClick={() => setCurrentState("Login")}
-            className="cursor-pointer"
-          >
-            Login here
-          </p>
-        )}
-      </div>
 
-      <button className="px-8 py-2 mt-4 font-light text-white bg-black">
-        {currentState === "Login" ? "Sign In" : "Sign Up"}
-      </button>
-    </form>
+          {currentState === "Login" ? (
+            <p
+              onClick={() => setCurrentState("Sign Up")}
+              className="cursor-pointer"
+            >
+              Create a new account
+            </p>
+          ) : (
+            <p
+              onClick={() => setCurrentState("Login")}
+              className="cursor-pointer"
+            >
+              Login here
+            </p>
+          )}
+        </div>
+
+        <button className="px-8 py-2 mt-4 font-light text-white bg-black">
+          {currentState === "Login" ? "Sign In" : "Sign Up"}
+        </button>
+      </form>
+    </>
   );
 };
 
