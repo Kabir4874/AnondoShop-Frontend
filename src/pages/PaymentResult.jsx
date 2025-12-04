@@ -24,6 +24,14 @@ const PaymentResult = () => {
   const status = params.get("status"); // success | failed | cancelled | error | cod/placed
   const orderId = params.get("orderId");
   const paymentParam = params.get("payment"); // cod | ssl | bkash | etc.
+
+  // ✅ DEFINE THESE BEFORE USING THEM
+  const isCOD =
+    (paymentParam && paymentParam.toLowerCase() === "cod") ||
+    status === "cod" ||
+    status === "placed";
+  const isSuccess = status === "success" || isCOD;
+
   const canonicalUrl = `${SITE_URL}/payment-result`;
   const pageTitle = isSuccess
     ? isCOD
@@ -42,12 +50,6 @@ const PaymentResult = () => {
     : status === "cancelled"
     ? "You cancelled the payment process. You can return to AnondoShop and try again later."
     : "Check the status of your payment and order on AnondoShop.";
-
-  const isCOD =
-    (paymentParam && paymentParam.toLowerCase() === "cod") ||
-    status === "cod" ||
-    status === "placed";
-  const isSuccess = status === "success" || isCOD;
 
   // Prevent duplicate tracking on StrictMode
   const firedRef = useRef(false);
