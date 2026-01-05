@@ -84,6 +84,11 @@ const ShopContextProvider = (props) => {
     }
   };
 
+  const isJwtExpired = (msg) => {
+    const normalized = String(msg || "").toLowerCase();
+    return normalized.includes("jwt") && normalized.includes("expired");
+  };
+
   // ----- USER PROFILE -----
   const fetchUserProfile = async (tk = token) => {
     if (!tk) return;
@@ -105,15 +110,24 @@ const ShopContextProvider = (props) => {
           postalCode: addr.postalCode || "",
         });
       } else {
-        toast.error(res?.data?.message || "Failed to load profile");
+        const msg = res?.data?.message;
+        if (isJwtExpired(msg)) {
+          setTokenAndPersist("");
+        } else {
+          toast.error(msg || "Failed to load profile");
+        }
       }
     } catch (error) {
       console.error(error);
-      toast.error(
+      const msg =
         error?.response?.data?.message ||
-          error.message ||
-          "Failed to load profile"
-      );
+        error.message ||
+        "Failed to load profile";
+      if (isJwtExpired(msg)) {
+        setTokenAndPersist("");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setIsProfileLoading(false);
     }
@@ -153,15 +167,24 @@ const ShopContextProvider = (props) => {
         });
         toast.success("Address saved successfully");
       } else {
-        toast.error(res?.data?.message || "Failed to save address");
+        const msg = res?.data?.message;
+        if (isJwtExpired(msg)) {
+          setTokenAndPersist("");
+        } else {
+          toast.error(msg || "Failed to save address");
+        }
       }
     } catch (error) {
       console.error(error);
-      toast.error(
+      const msg =
         error?.response?.data?.message ||
-          error.message ||
-          "Failed to save address"
-      );
+        error.message ||
+        "Failed to save address";
+      if (isJwtExpired(msg)) {
+        setTokenAndPersist("");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setIsSavingAddress(false);
     }
