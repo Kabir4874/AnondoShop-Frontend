@@ -60,11 +60,11 @@ const Collection = () => {
           sort: "name",
         });
         const { data } = await axios.get(
-          `${backendUrl}/api/category?${params.toString()}`
+          `${backendUrl}/api/category?${params.toString()}`,
         );
         if (data?.success) {
           setCategoryOptions(
-            Array.isArray(data.categories) ? data.categories : []
+            Array.isArray(data.categories) ? data.categories : [],
           );
         } else {
           toast.error(data?.message || "Failed to load categories");
@@ -74,7 +74,7 @@ const Collection = () => {
         toast.error(
           err?.response?.data?.message ||
             err.message ||
-            "Failed to load categories"
+            "Failed to load categories",
         );
       } finally {
         setLoadingCategories(false);
@@ -88,8 +88,6 @@ const Collection = () => {
   useEffect(() => {
     if (initialCategoryFromURL) {
       setCategory([initialCategoryFromURL]);
-      // make filters visible on mobile to highlight the selection
-      setShowFilter(true);
     }
   }, [initialCategoryFromURL]);
 
@@ -111,7 +109,7 @@ const Collection = () => {
 
   const toggleValue = (val, setter) =>
     setter((prev) =>
-      prev.includes(val) ? prev.filter((i) => i !== val) : [...prev, val]
+      prev.includes(val) ? prev.filter((i) => i !== val) : [...prev, val],
     );
 
   const toggleCategory = (e) => toggleValue(e.target.value, setCategory);
@@ -458,7 +456,7 @@ const Collection = () => {
                 showFilter ? "inline-flex" : "hidden"
               } sm:inline-flex items-center justify-center px-4 py-2 mt-1 text-white bg-black rounded hover:bg-gray-900 w/full sm:w-auto`.replace(
                 "/",
-                "-"
+                "-",
               )}
               onClick={clearFilters}
               type="button"
